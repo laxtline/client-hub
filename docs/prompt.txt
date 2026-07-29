@@ -1,0 +1,176 @@
+===============================================================================
+ ClientHub — PROJECT SPECIFICATION / MASTER PROMPT
+===============================================================================
+This file describes WHAT ClientHub is and WHY each part exists. Use it to
+re-explain the project to anyone (or any AI), or to rebuild a module from
+scratch. It is the single, current specification — earlier draft prompt
+documents have been removed to keep one source of truth.
+
+-------------------------------------------------------------------------------
+1. ONE-LINE PITCH
+-------------------------------------------------------------------------------
+ClientHub is an AI-powered, multi-tenant client & project management portal for
+a freelance agency/studio: clients, projects, Kanban tasks, invoicing with
+online payments, real-time notifications, analytics, and a weekly AI progress
+report powered by the Groq API.
+
+-------------------------------------------------------------------------------
+2. WHO USES IT (ROLES)
+-------------------------------------------------------------------------------
+- Admin        : full control — manage clients, projects, tasks, invoices.
+- Team Member  : works on tasks, logs hours, comments, updates status.
+- Client       : read-mostly portal — sees their own projects, progress, invoices,
+                 pays online, and reads the AI weekly summary.
+
+Role-based access control (RBAC) is enforced on EVERY protected route on the
+backend, not just hidden in the UI. On top of RBAC there is TENANT ISOLATION:
+each controller that can return client data resolves the caller's own Client
+record from their user id and filters by it, so a client with a perfectly valid
+token still gets a 403 when reaching for another client's project.
+
+-------------------------------------------------------------------------------
+3. CORE FEATURES (and the "why")
+-------------------------------------------------------------------------------
+- Auth & RBAC        : JWT + bcrypt. Three roles. Tokens re-validated against the
+                       DB on every request so a disabled account loses access
+                       immediately. The verify call pins algorithm HS256.
+- Clients            : CRUD, company info, logo upload (ImageKit), debounced
+                       search/filter, archive instead of hard delete. Creating a
+                       client optionally provisions their portal login in the
+                       same database transaction, so a failure can't leave an
+                       orphaned account holding the email address.
+- Projects           : budget, start/deadline, status, auto-calculated progress %
+                       derived from task completion.
+- Kanban tasks       : drag & drop (@dnd-kit) across To Do / In Progress / Review /
+                       Done, priority, due date, hours logged, comments, and an
+                       activity audit trail (who changed what, when). Moves apply
+                       optimistically and roll back if the request fails.
+- Invoicing          : line items + tax, auto total, PDF export (pdfkit),
+                       statuses pending/paid/overdue. A daily job flips past-due
+                       pending invoices to overdue; those remain payable.
+- Payments           : Razorpay test mode. The order is created server-side; the
+                       webhook is SIGNATURE-VERIFIED with an HMAC over the raw
+                       body before the invoice is marked paid (never trust the
+                       browser). The handler is idempotent because gateways retry.
+- Notifications      : real-time via Socket.io (authenticated handshake, one room
+                       per user), with an email fallback (Nodemailer) so nothing
+                       is missed when a user is offline.
+- Analytics          : Recharts dashboards — revenue, pending, overdue, project
+                       counts, top clients; separate views for admin vs client.
+                       Aggregation happens in the database, not in JavaScript.
+- AI weekly summary  : THE DIFFERENTIATOR. Aggregates a project's week of activity,
+                       asks Groq for a friendly summary + risk flag (on_track /
+                       at_risk / delayed), stores it with full history, and ALWAYS
+                       falls back to a deterministic template if the AI is
+                       unavailable — the app never crashes because of the AI, and
+                       the UI labels a fallback honestly rather than pretending.
+- Cron               : node-cron schedules the weekly summary and the daily
+                       overdue-invoice sweep, both pinned to a real timezone
+                       (CRON_TIMEZONE, default Asia/Kolkata) rather than the
+                       host's UTC clock.
+
+-------------------------------------------------------------------------------
+4. NON-FUNCTIONAL REQUIREMENTS (the parts that make it production-shaped)
+-------------------------------------------------------------------------------
+- GRACEFUL DEGRADATION : the app boots with only DATABASE_URL and JWT_SECRET.
+                         Every external service (AI, payments, uploads, email) is
+                         optional and fails soft with a clear message.
+- FAIL FAST ON CONFIG  : validateEnv aborts the boot on a missing required
+                         variable, and refuses a weak JWT_SECRET in production.
+- HONEST HEALTH CHECKS : /api/health reports database reachability and returns
+                         503 when the DB is down, so a broken deploy cannot
+                         report itself as healthy.
+- CONSISTENT ERRORS    : one central handler maps Prisma and upload errors to the
+                         right status codes (409 for a duplicate, 413 for an
+                         oversized file) and never leaks a stack trace or an
+                         internal message to the client in production.
+- PERFORMANCE          : route-level code splitting plus a dynamic import for
+                         socket.io keep the initial bundle at ~233 kB instead of
+                         ~748 kB; the API gzips responses; nginx gzips assets and
+                         never caches index.html.
+- ACCESSIBILITY        : focus trap and focus restore in modals, Escape to close,
+                         keyboard-reachable Kanban cards, labelled controls.
+- RESPONSIVE + THEMED  : full dark mode across every page, applied before first
+                         paint to avoid a flash; drawer navigation on phones.
+- GRACEFUL SHUTDOWN    : SIGTERM drains in-flight requests and closes the DB pool
+                         instead of dropping them mid-flight.
+
+-------------------------------------------------------------------------------
+5. TECH STACK
+-------------------------------------------------------------------------------
+Frontend : React 18, Vite, Tailwind CSS, Recharts, @dnd-kit, Axios, React Router,
+           socket.io-client
+Backend  : Node.js 20, Express, Prisma ORM, PostgreSQL, Socket.io, JWT, bcryptjs,
+           Zod (validation), Winston (logging), Morgan, express-rate-limit,
+           compression, helmet
+Services : Groq API (Llama 3.3, OpenAI-compatible), Razorpay, ImageKit, Nodemailer,
+           node-cron, pdfkit
+Tooling  : ESLint (flat config) + Prettier, Vitest (44 unit/component tests),
+           GitHub Actions CI, Docker + docker-compose
+
+-------------------------------------------------------------------------------
+6. DATA MODEL (Prisma — 9 entities)
+-------------------------------------------------------------------------------
+User, Client, Project, Task, TaskActivity, TaskComment, Invoice, Payment,
+Notification, AISummary. (See server/src/prisma/schema.prisma for fields,
+enums, and relations.)
+
+Key relationships:
+- A client-role User links 1:1 to a Client record (portal login).
+- Client 1—* Project 1—* Task 1—* TaskComment / TaskActivity.
+- Project 1—* Invoice 1—* Payment.
+- Project 1—* AISummary (full history, one row per generation).
+
+Design details worth explaining:
+- Foreign-key columns carry explicit @@index entries — PostgreSQL does not index
+  them automatically, and these back the most frequent lookups.
+- Task.completedAt is stamped when a task reaches "done" and cleared if it is
+  reopened, so "finished this week" is a truthful number (createdAt could not
+  answer that question).
+- Cascade deletes are declared on the relations where an orphan row would be
+  meaningless (a task without its project).
+
+-------------------------------------------------------------------------------
+7. ARCHITECTURE NOTES (talking points)
+-------------------------------------------------------------------------------
+- app.js is separate from server.js so the Express app can be imported in tests
+  without opening a port.
+- The payment webhook is mounted with express.raw() BEFORE express.json() so the
+  signature can be verified against the unparsed body. Re-serialising the JSON
+  would change the bytes and invalidate the HMAC.
+- Layering is strict: routes validate (Zod) -> controllers handle request and
+  response only -> services hold business logic -> config wraps external SDKs.
+- Pure helpers (calculateProgress, calculateInvoiceTotal) are isolated so they
+  are trivially unit-tested without a database.
+- The React contexts live in their own module, apart from the provider
+  components, so Vite's Fast Refresh works and editing a provider hot-updates
+  instead of reloading the page.
+- Secrets are read only from environment variables; .env is git-ignored and
+  .env.example documents every key.
+
+-------------------------------------------------------------------------------
+8. WHAT IS DELIBERATELY OUT OF SCOPE
+-------------------------------------------------------------------------------
+Named so nobody mistakes an omission for an oversight:
+- Refresh-token rotation (a 7-day access token is enough for this scope).
+- DB-backed password-reset tokens (currently in-memory with an hourly sweep —
+  fine for a demo, would not survive a restart in production).
+- Horizontal Socket.io scaling (would need a Redis adapter).
+- File attachments, full-text search, CSV export, team-management UI.
+- E2E browser tests (the unit/component suite covers the logic).
+
+-------------------------------------------------------------------------------
+9. REBUILD PROMPT (paste into an AI to regenerate a module)
+-------------------------------------------------------------------------------
+"You are building ClientHub, a React + Express + Prisma + PostgreSQL agency
+client/project management portal with JWT RBAC (admin/team_member/client) AND
+per-client tenant isolation enforced server-side, clients, projects with auto
+progress %, a drag-and-drop Kanban with an audit trail, invoicing with Razorpay
+(webhook HMAC-verified on the raw body, handled idempotently), Socket.io
+notifications with an email fallback, Recharts analytics aggregated in SQL, and
+a weekly AI progress summary via the Groq API that gracefully falls back to a
+deterministic template. Every external integration must be optional and fail
+soft. Follow the schema in server/src/prisma/schema.prisma. Write clean,
+commented, tested code, and explain the reasoning behind any non-obvious
+decision in a comment."
+===============================================================================

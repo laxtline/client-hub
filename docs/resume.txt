@@ -1,0 +1,150 @@
+===============================================================================
+ ClientHub — RESUME & INTERVIEW KIT
+===============================================================================
+Copy-paste ready bullets, a project blurb, and interview talking points.
+Replace <GitHub link> and <Live link> with your real URLs before using.
+
+-------------------------------------------------------------------------------
+1. RESUME PROJECT ENTRY (concise version — use 4-6 of these bullets)
+-------------------------------------------------------------------------------
+ClientHub — AI-Powered Agency Client & Project Management Portal
+Tech: React, Node.js/Express, PostgreSQL (Prisma), Socket.io, Groq API, Docker
+Links: <GitHub link> | <Live demo link>
+
+- Built a full-stack, multi-tenant SaaS portal with JWT authentication and
+  role-based access control for three roles (Admin, Team Member, Client), with
+  tenant isolation enforced server-side so a client cannot reach another
+  client's data even by calling the API directly.
+- Designed a 9-table relational schema in Prisma/PostgreSQL covering clients,
+  projects, Kanban tasks, invoices, payments, notifications and an audit trail.
+- Implemented a drag-and-drop Kanban board (@dnd-kit) with optimistic updates,
+  task comments, time tracking, and an activity audit log.
+- Integrated Razorpay payments with HMAC webhook signature verification on the
+  raw request body, plus server-side PDF invoice generation (pdfkit).
+- Added real-time notifications via Socket.io with an email fallback (Nodemailer)
+  so users are reached whether or not they are online.
+- Engineered an AI weekly progress report using the Groq API (Llama 3.3) that
+  summarises project activity and flags delivery risk, with a deterministic
+  fallback that keeps the feature working when the API is unavailable.
+- Cut the initial JavaScript bundle by ~69% (748 kB to 233 kB) with route-level
+  code splitting and dynamic imports, and added gzip compression to the API.
+- Set up 44 automated tests (Vitest), zero-warning linting (ESLint/Prettier),
+  GitHub Actions CI, and one-command deployment with Docker Compose.
+
+-------------------------------------------------------------------------------
+2. SHORT BLURB (for portfolio / LinkedIn)
+-------------------------------------------------------------------------------
+ClientHub is a SaaS-style portal that lets a freelance agency manage clients,
+projects, and Kanban tasks; send invoices and accept online payments; and share
+an AI-generated weekly progress report with clients. Built with React, Express,
+Prisma/PostgreSQL, Socket.io, and the Groq API — fully tested, containerized,
+and CI-enabled.
+
+-------------------------------------------------------------------------------
+3. ONE-LINER (for the top of a resume / header)
+-------------------------------------------------------------------------------
+Full-stack React + PostgreSQL portal with RBAC, online payments, real-time
+notifications, and an AI weekly progress summary (Groq API).
+
+-------------------------------------------------------------------------------
+4. SKILLS THIS PROJECT DEMONSTRATES (good for the Skills section)
+-------------------------------------------------------------------------------
+Frontend    : React, Vite, Tailwind CSS, React Router, context/state, code
+              splitting, Recharts, responsive + dark-mode UI
+Backend     : Node.js, Express, REST API design, JWT auth, RBAC, rate limiting,
+              Zod validation, centralised error handling
+Database    : PostgreSQL, Prisma ORM, relational schema design, indexing
+Realtime    : WebSockets (Socket.io) with authenticated handshakes and rooms
+Integrations: Payment gateway (Razorpay), ImageKit, SMTP email, Groq AI API
+Quality     : Unit/component testing (Vitest), ESLint/Prettier, graceful
+              degradation, structured logging (Winston)
+DevOps      : Docker, docker-compose, GitHub Actions CI, environment validation,
+              health checks, graceful shutdown
+
+-------------------------------------------------------------------------------
+5. INTERVIEW TALKING POINTS (be ready to explain these)
+-------------------------------------------------------------------------------
+Q: How does authentication/authorization work?
+A: JWT issued on login (bcrypt-hashed passwords, 10 salt rounds). Middleware
+   verifies the token — with the algorithm pinned to HS256 so an attacker can't
+   substitute a differently-signed token — and re-fetches the user from the DB
+   on each request, so a deleted or disabled account loses access immediately.
+   A separate role middleware guards routes per role.
+
+Q: What is "tenant isolation" and where is it enforced?
+A: Every controller that can return client data resolves the caller's own Client
+   record from their user id and filters by it. The UI also hides what a client
+   can't use, but that's cosmetic — the security boundary is server-side. A
+   client hitting /api/projects/<someone-else's-id> gets a 403, not data.
+
+Q: Why verify the payment webhook on the server?
+A: The browser can be tampered with, so an invoice is only marked "paid" after
+   Razorpay's HMAC signature is verified against the RAW request body. That's
+   why the webhook route is mounted BEFORE express.json() with a raw parser —
+   re-serialising the JSON would change the bytes and break the signature. The
+   handler is also idempotent, because gateways retry webhook deliveries.
+
+Q: What happens if the AI API is down or rate-limited?
+A: The AI summary service catches the error, logs it, and returns a deterministic
+   template built from the same aggregated stats, flagged riskFlag: "unknown" so
+   the UI can label it honestly. The feature degrades instead of failing. Every
+   external integration in the app follows that same pattern.
+
+Q: How is progress calculated?
+A: A pure function computes (done tasks / total tasks) as a percentage. It's
+   isolated from the database so it's trivial to unit-test, and it's reused by
+   the project list, the project detail page, and the AI aggregation step.
+
+Q: What did you do about performance?
+A: Three things with measurable results. Route-level React.lazy plus a dynamic
+   import for socket.io took the initial bundle from ~748 kB to ~233 kB, so
+   recharts and dnd-kit only download on the pages that use them. The client
+   search box is debounced, which turned one API call per keystroke into one per
+   search. And the API gzips responses while nginx gzips static assets.
+
+Q: How would you scale / deploy this?
+A: The API is stateless, so it sits behind a load balancer with managed
+   PostgreSQL (Neon/Supabase). Socket.io needs a Redis adapter to broadcast
+   across instances. The frontend is static and goes on a CDN (Vercel). It's
+   already containerized with docker-compose for local parity, and /api/health
+   reports database reachability so a load balancer can drain a bad instance.
+
+Q: What did you do for code quality?
+A: 44 Vitest tests covering pure logic, auth, the RBAC middleware, the error
+   handler and the webhook signature check; ESLint + Prettier with a flat config
+   running at zero warnings; and a GitHub Actions pipeline that runs lint, tests
+   and build for both apps on every push and pull request.
+
+Q: Tell me about a bug you found and fixed.
+A: (Pick one you can talk through.) The Socket.io server was configured with
+   origin '*' plus credentials: true — browsers reject that combination, so
+   real-time notifications would have silently failed in production while
+   working fine locally. Another: dnd-kit fires a click on pointer-up after a
+   drag, so dropping a Kanban card also popped its detail modal open; the fix
+   was to track whether the gesture became a drag and swallow that click.
+
+-------------------------------------------------------------------------------
+6. POSSIBLE FOLLOW-UP / "WHAT WOULD YOU ADD NEXT" ANSWERS
+-------------------------------------------------------------------------------
+- Refresh tokens with rotation, and DB-backed password-reset tokens (they are
+  currently in-memory, which is fine for a demo but doesn't survive a restart).
+- Redis adapter for Socket.io to scale beyond a single instance.
+- File attachments on tasks, and full-text search across clients and projects.
+- CSV/Excel export of invoices and the audit log.
+- E2E tests (Playwright) on top of the existing unit tests.
+- Per-client white-label theming.
+
+Saying "here's what I'd do next, and here's why I didn't do it yet" reads far
+better than claiming the project is perfect.
+
+-------------------------------------------------------------------------------
+7. NUMBERS WORTH QUOTING
+-------------------------------------------------------------------------------
+  9      database tables (entities)
+  3      user roles with distinct permissions
+  9      REST resource groups, ~35 endpoints
+  44     automated tests (29 server + 15 client), all passing
+  0      lint warnings across both apps
+  ~233 kB initial JS bundle (down from ~748 kB), ~79 kB gzipped
+  5      external integrations, every one optional and gracefully degrading
+===============================================================================

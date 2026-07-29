@@ -1,0 +1,257 @@
+// ===================================================================
+// Prisma schema — the single source of truth for ClientHub's database.
+// Defines all 9 entities and their relationships (see ER docs).
+// Run `npx prisma migrate dev` after editing to apply changes.
+// ===================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  // Include the Alpine (musl) OpenSSL 3 engine so the image built on
+  // node:20-alpine can run Prisma alongside the host's native target.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums (fixed value sets keep data consistent) ----------
+enum Role {
+  admin
+  team_member
+  client
+}
+
+enum ProjectStatus {
+  not_started
+  in_progress
+  completed
+  on_hold
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  done
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum InvoiceStatus {
+  pending
+  paid
+  overdue
+}
+
+enum PaymentStatus {
+  created
+  paid
+  failed
+}
+
+enum RiskFlag {
+  on_track
+  at_risk
+  delayed
+  unknown
+}
+
+// ---------- User: every login (admin, team member, or client) ----------
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(team_member)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  clientProfile  Client?        // set only when role = client
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  comments       TaskComment[]
+  notifications  Notification[]
+  taskActivities TaskActivity[] // audit trail of task changes this user made
+  resetTokens    PasswordResetToken[]
+}
+
+// ---------- PasswordResetToken: a single-use "forgot password" grant ----------
+// Stored in the database rather than in process memory so a restart (or a second
+// server instance behind a load balancer) does not invalidate a reset link the
+// user is holding in their inbox.
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  // Only the SHA-256 hash of the token is stored. The raw token exists solely in
+  // the emailed URL, so a leaked database cannot be used to reset anyone's
+  // password — the same reason passwords themselves are never stored in plain text.
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime? // set on redemption; a second use is rejected
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt]) // backs the daily cleanup of expired rows
+}
+
+// ---------- Client: an agency customer ----------
+model Client {
+  id           String    @id @default(cuid())
+  name         String
+  companyName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+  logoUrl      String?
+  archived     Boolean   @default(false)
+
+  // Each client record is linked to a client-role User for portal login
+  linkedUserId String?   @unique
+  linkedUser   User?     @relation(fields: [linkedUserId], references: [id])
+
+  projects     Project[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+}
+
+// ---------- Project: a piece of work for a client ----------
+model Project {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  budget      Float         @default(0)
+  startDate   DateTime?
+  deadline    DateTime?
+  status      ProjectStatus @default(not_started)
+  archived    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+
+  tasks       Task[]
+  invoices    Invoice[]
+  aiSummaries AISummary[]
+
+  // Postgres does not auto-index FK columns; this backs the frequent
+  // "projects of client X" lookups.
+  @@index([clientId])
+}
+
+// ---------- Task: a unit of work on the Kanban board ----------
+model Task {
+  id               String        @id @default(cuid())
+  projectId        String
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  assignedToUserId String?
+  assignedTo       User?         @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  status           TaskStatus    @default(todo)
+  priority         Priority      @default(medium)
+  dueDate          DateTime?
+  hoursLogged      Float         @default(0)
+  completedAt      DateTime?     // set when status moves to done; cleared if reopened
+  createdAt        DateTime      @default(now())
+
+  comments         TaskComment[]
+  activities       TaskActivity[]
+
+  @@index([projectId])
+  @@index([assignedToUserId])
+}
+
+// ---------- TaskActivity: audit log of who changed a task and when ----------
+model TaskActivity {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g. "status_changed", "task_updated"
+  detail    String?  // e.g. "todo → done"
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+// ---------- TaskComment: discussion thread on a task ----------
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+// ---------- Invoice: a bill for a project ----------
+model Invoice {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lineItems   Json          // [{ description, quantity, rate }]
+  taxRate     Float         @default(0)
+  totalAmount Float         @default(0)
+  status      InvoiceStatus @default(pending)
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+
+  payments    Payment[]
+
+  @@index([projectId])
+  @@index([clientId])
+}
+
+// ---------- Payment: a payment attempt against an invoice ----------
+model Payment {
+  id                   String        @id @default(cuid())
+  invoiceId            String
+  invoice              Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount               Float
+  gatewayTransactionId String?
+  status               PaymentStatus @default(created)
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+
+  // gatewayTransactionId is looked up on every webhook delivery.
+  @@index([invoiceId])
+  @@index([gatewayTransactionId])
+}
+
+// ---------- Notification: in-app alert for a user ----------
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  type      String   // e.g. "task_assigned", "invoice_paid"
+  link      String?  // optional in-app deep link
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------- AISummary: a stored AI-generated progress report ----------
+model AISummary {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  summaryText String
+  riskFlag    RiskFlag @default(unknown)
+  generatedAt DateTime @default(now())
+
+  @@index([projectId])
+}

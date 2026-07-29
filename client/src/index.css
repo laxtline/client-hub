@@ -1,0 +1,9 @@
+/* Tailwind layers + a couple of small global styles. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

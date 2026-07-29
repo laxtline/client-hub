@@ -1,0 +1,302 @@
+===============================================================================
+ ClientHub — BEST FREE WAY TO PUT THIS PROJECT LIVE (100% free tiers)
+===============================================================================
+Goal: a public https link for your resume, without paying anything and without
+entering a credit card. ~20-30 minutes, top to bottom.
+
+   Frontend (React)    -> Vercel   (free static hosting)
+   Backend  (API)      -> Render   (free web service)
+   Database (Postgres) -> Neon     (free serverless Postgres)
+   AI (optional)       -> Groq (Llama 3.3) — the app works WITHOUT it
+   Payments (optional) -> Razorpay TEST mode (free, no real money)
+   Images (optional)   -> ImageKit.io (free tier)
+
+WHAT YOU END UP WITH:
+   Frontend:  https://clienthub.vercel.app
+   Backend:   https://clienthub-api.onrender.com
+
+TIP: the app is built to run even if the AI / Razorpay / ImageKit / SMTP keys
+are missing, so go live with just Frontend + Backend + Database and add the
+rest later. Nothing breaks.
+
+BEFORE YOU START: you need a GitHub account with the code pushed (STEP 0).
+Keep this file open while you work.
+
+===============================================================================
+ STEP 0 — PUSH THE CODE TO GITHUB
+===============================================================================
+ 1. Create an EMPTY repo on github.com (e.g. "clienthub"). Do NOT let GitHub add
+    a README or a License — the project already has both.
+
+ 2. In a terminal, from the folder that contains docker-compose.yml:
+
+      git add -A
+      git commit -m "Deploy-ready"
+      git branch -M main
+      git remote add origin https://github.com/<YOUR-USERNAME>/clienthub.git
+      git push -u origin main
+
+    If it says "remote origin already exists":
+      git remote set-url origin https://github.com/<YOUR-USERNAME>/clienthub.git
+
+ IMPORTANT: your .env files are gitignored and will NOT be pushed — secrets stay
+ private. You re-enter the keys in the Render/Vercel dashboards below.
+
+ (More detail on branches, releases and repo presentation: see github.txt.)
+
+===============================================================================
+ STEP 1 — DATABASE: NEON (free serverless PostgreSQL)
+===============================================================================
+ 1. Go to  https://neon.tech  -> sign up (GitHub login is fastest) -> New Project.
+ 2. Name it "clienthub". Region: pick the one nearest you.
+ 3. Copy the CONNECTION STRING. It looks like:
+        postgresql://user:pass@ep-xxxx-xxxx.aws.neon.tech/dbname?sslmode=require
+ 4. SAVE it — this is your DATABASE_URL for STEP 2.
+
+ (Alternative free Postgres: Supabase. Either works.)
+
+===============================================================================
+ STEP 2 — BACKEND: RENDER (free web service)
+===============================================================================
+ 1. Go to  https://render.com  -> sign up with GitHub.
+ 2. New  ->  Web Service  ->  connect your "clienthub" repo.
+ 3. Settings (set these EXACTLY):
+
+        Name             : clienthub-api
+        Language/Runtime : Node          <-- NOT Docker (see notes at the bottom)
+        Root Directory   : server
+        Build Command    : npm install && npx prisma db push
+        Start Command    : node src/server.js
+        Instance Type    : Free
+
+    NOTE: `npm install` already runs `prisma generate` for you (it is a
+    postinstall hook in server/package.json), so you no longer need it in the
+    build command.
+
+    WHY `npx prisma db push` IS IN THE BUILD COMMAND: it creates/updates the
+    tables in Neon to match schema.prisma. It runs on every deploy and is safe
+    to re-run — if the tables already match, it does nothing. This is also what
+    creates the PasswordResetToken table used by the forgot-password flow, so
+    do not remove it.
+
+ 4. Add Environment Variables (Environment tab -> Add):
+
+        NODE_ENV                = production
+        PORT                    = 5000
+        DATABASE_URL            = <your Neon string from STEP 1>
+        JWT_SECRET              = <a long random string, 32+ chars>
+        JWT_EXPIRES_IN          = 7d
+        CLIENT_URL              = <leave blank for now; fill in at STEP 4>
+        CRON_TIMEZONE           = Asia/Kolkata
+        GROQ_API_KEY            = <your Groq key>          (optional)
+        GROQ_MODEL              = llama-3.3-70b-versatile
+        IMAGEKIT_PUBLIC_KEY     = <optional>
+        IMAGEKIT_PRIVATE_KEY    = <optional>
+        IMAGEKIT_URL_ENDPOINT   = <optional>
+        RAZORPAY_KEY_ID         = <optional test key>
+        RAZORPAY_KEY_SECRET     = <optional>
+        RAZORPAY_WEBHOOK_SECRET = <optional>
+        SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM = <optional>
+
+    Generate a strong JWT_SECRET quickly:
+        node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+ 5. Click Deploy. Wait for "Live". Note your API URL:
+        https://clienthub-api.onrender.com
+
+ 6. SEED DEMO DATA ONCE: open the Render "Shell" tab and run:
+        npm run seed
+    Run this once. Do NOT put the seed in the Start Command.
+    (The seed self-guards and skips when data exists, but keeping it out of the
+    start command is still the cleaner setup.)
+
+ 7. Quick check: open  https://clienthub-api.onrender.com/api/health
+    You should see something like:
+        {"status":"ok","service":"ClientHub API","database":"ok","uptimeSeconds":12}
+    If "database" says "unreachable", your DATABASE_URL is wrong.
+
+===============================================================================
+ STEP 3 — FRONTEND: VERCEL (free static hosting)
+===============================================================================
+ 1. Go to  https://vercel.com  -> sign up with GitHub -> Add New Project ->
+    import your "clienthub" repo.
+ 2. Settings:
+
+        Framework Preset : Vite
+        Root Directory   : client        <-- click "Edit" and choose client
+        Build Command    : npm run build   (auto-detected)
+        Output Directory : dist            (auto-detected)
+
+ 3. Add Environment Variables BEFORE deploying (they are baked into the bundle
+    at build time, so adding them later requires a rebuild):
+
+        VITE_API_URL         = https://clienthub-api.onrender.com/api
+        VITE_SOCKET_URL      = https://clienthub-api.onrender.com
+        VITE_RAZORPAY_KEY_ID = rzp_test_xxxxxxxx   (or your test key)
+
+ 4. Click Deploy. Note your frontend URL:
+        https://clienthub.vercel.app
+
+===============================================================================
+ STEP 4 — CONNECT THE TWO (this is what fixes CORS)
+===============================================================================
+ 1. Go back to Render -> your service -> Environment.
+ 2. Set   CLIENT_URL = https://clienthub.vercel.app
+    Your exact Vercel URL, with NO trailing slash.
+ 3. Save. Render redeploys automatically.
+
+ This one variable controls BOTH the REST CORS policy and the Socket.io
+ handshake. If it is wrong, the app loads but every API call fails and the
+ notification bell stays silent.
+
+===============================================================================
+ STEP 5 — TEST YOUR LIVE APP
+===============================================================================
+ 1. Open your Vercel URL.
+ 2. Log in:  admin@demo.com / Demo@1234   (see DEMO_LOGINS.txt).
+ 3. Check:
+      [ ] dashboard KPIs and charts load
+      [ ] dark-mode toggle works, and survives a page refresh with no white flash
+      [ ] clients / projects / invoices pages show seeded data
+      [ ] a toast appears on login
+      [ ] drag a Kanban card — the progress % updates
+      [ ] "My Tasks" in the sidebar lists your assigned work, soonest due first,
+          and an overdue date shows in red
+      [ ] open the notification bell and click an item — it opens the right page,
+          NOT the 404 page
+      [ ] open the site on your phone — the ☰ menu opens the navigation drawer
+      [ ] log in as client@demo.com in incognito — they see only their own data
+      [ ] log in as team@demo.com — no "Clients" data they shouldn't have
+
+ 4. If you configured SMTP, also test the password reset round-trip:
+      Forgot password -> check the inbox -> open the link -> set a new password
+      -> log in with it. (Reset links now live in the database, so this keeps
+      working even after Render restarts or sleeps.)
+
+ 5. Put the live URL in your resume and at the top of README.md ("Live demo").
+
+===============================================================================
+ STEP 6 (OPTIONAL) — PAYMENTS WEBHOOK
+===============================================================================
+ In the Razorpay TEST dashboard, add a webhook pointing to:
+        https://<your-render-api>.onrender.com/api/payments/webhook
+ Set the webhook secret to the same value as RAZORPAY_WEBHOOK_SECRET.
+ Subscribe to the "payment.captured" event.
+
+ Use Razorpay's test card numbers to simulate a payment — no real money moves.
+ The server verifies the HMAC signature on the raw request body before trusting
+ anything, so a forged webhook cannot mark an invoice paid.
+
+===============================================================================
+ GOTCHAS / NOTES
+===============================================================================
+ - FREE TIER SLEEP: Render free services sleep after ~15 min idle. The first
+   request then takes ~30-50s to wake. This is normal.
+   Demo tip: open the /api/health URL a minute before you present.
+   Or point a free uptime monitor (e.g. UptimeRobot) at /api/health every 10 min.
+
+ - WHY "Node", not "Docker" on Render: simpler setup and much faster builds.
+   The Dockerfile is still there and works — it is what docker-compose uses
+   locally, and it is a good thing to show in a viva.
+
+ - DATA LIVES IN NEON, not on Render, so a Render restart never loses it.
+
+ - AI / PAYMENTS / UPLOADS / EMAIL all degrade gracefully when their keys are
+   absent. Go live first, add keys later.
+
+ - CHANGED A VITE_* VAR? Vercel must REBUILD — they are compiled into the
+   bundle. Trigger a redeploy after editing them.
+
+ - HTTPS EVERYWHERE: both Vercel and Render give you free TLS automatically.
+   Do not mix http and https between the two, or the browser will block it.
+
+===============================================================================
+ TROUBLESHOOTING — the 10 things that actually go wrong
+===============================================================================
+ Work down this list; it is ordered by how often each one bites.
+
+ 1. SITE LOADS BUT EVERY REQUEST FAILS / "Network Error"
+    Cause  : CLIENT_URL on Render does not exactly match your Vercel URL.
+    Fix    : No trailing slash. https, not http. Exact subdomain. Redeploy.
+    Check  : Browser DevTools -> Console. A CORS message confirms it.
+
+ 2. FIRST REQUEST HANGS FOR ~40 SECONDS
+    Cause  : Render free tier went to sleep. This is normal, not a bug.
+    Fix    : Open /api/health a minute before demoing, or use UptimeRobot.
+
+ 3. /api/health SAYS "database":"unreachable"
+    Cause  : Bad DATABASE_URL.
+    Fix    : Re-copy from Neon. It must end with ?sslmode=require
+
+ 4. LOGIN SAYS "Invalid credentials" FOR admin@demo.com
+    Cause  : The seed never ran, or ran against a different database.
+    Fix    : Render Shell -> npm run seed
+    Note   : The seed SKIPS if any user already exists. To force a wipe and
+             reseed:  FORCE_SEED=true npm run seed
+
+ 5. BUILD FAILS: "Environment variable not found: DATABASE_URL"
+    Cause  : Env var missing at BUILD time (prisma db push needs it).
+    Fix    : Add DATABASE_URL in Render's Environment tab, then redeploy.
+
+ 6. SERVER EXITS IMMEDIATELY ON BOOT
+    Cause  : validateEnv() aborted. Read the log line — it names the variable.
+    Fix    : Usually a missing JWT_SECRET, or one shorter than 32 chars in
+             production (that is a hard failure by design).
+
+ 7. NOTIFICATION BELL NEVER UPDATES LIVE
+    Cause  : VITE_SOCKET_URL wrong, or CLIENT_URL mismatched (same root as #1).
+    Fix    : VITE_SOCKET_URL is the API origin with NO /api suffix.
+             VITE_API_URL is the same origin WITH /api. Do not mix them up.
+
+ 8. CHANGED A VITE_* VARIABLE, NOTHING HAPPENED
+    Cause  : Vite bakes these into the bundle at build time.
+    Fix    : Trigger a fresh Vercel deploy. Editing the value is not enough.
+
+ 9. REFRESHING /projects GIVES A 404 ON VERCEL
+    Cause  : SPA rewrite missing (Vercel's Vite preset normally handles it).
+    Fix    : Confirm Framework Preset = Vite, Output Directory = dist.
+
+10. PAYMENT SUCCEEDS BUT THE INVOICE STAYS "pending"
+    Cause  : The webhook never reached the server, or its secret is wrong.
+    Fix    : Razorpay dashboard -> Webhooks -> check the delivery log.
+             The URL must be the RENDER url + /api/payments/webhook, and
+             RAZORPAY_WEBHOOK_SECRET must match exactly. The server rejects a
+             bad signature on purpose — that rejection is the feature working.
+
+ STILL STUCK? Render -> Logs shows every server error with the request path.
+ That log is almost always enough to identify which of the above it is.
+
+===============================================================================
+ AFTER A CODE CHANGE — how to redeploy
+===============================================================================
+  git add -A
+  git commit -m "your message"
+  git push
+
+  Render and Vercel both auto-deploy from main. Nothing else to click.
+
+  If you changed schema.prisma, the Render build command already runs
+  `npx prisma db push`, so the tables update themselves on deploy.
+
+===============================================================================
+ OTHER FREE OPTIONS (mix & match)
+===============================================================================
+  Backend  : Railway (trial credits), Fly.io, Koyeb.
+  Frontend : Netlify, Cloudflare Pages.
+  Database : Supabase, Railway Postgres, Aiven.
+  No hosting at all: run "docker compose up --build" locally and screen-record
+  the demo — perfectly acceptable for a college submission.
+
+===============================================================================
+ QUICK CHECKLIST
+===============================================================================
+  [ ] Repo pushed to GitHub
+  [ ] Neon DB created, DATABASE_URL copied
+  [ ] Render backend deployed, env vars set, /api/health returns database "ok"
+  [ ] Demo data seeded once via the Render Shell
+  [ ] Vercel frontend deployed with VITE_API_URL / VITE_SOCKET_URL
+  [ ] CLIENT_URL on Render set to the Vercel URL (no trailing slash), redeployed
+  [ ] Login works live with admin@demo.com / Demo@1234
+  [ ] All three roles checked (admin, team member, client)
+  [ ] Live link added to README.md and to your resume
+===============================================================================

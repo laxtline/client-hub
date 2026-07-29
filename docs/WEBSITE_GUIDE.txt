@@ -1,0 +1,139 @@
+===============================================================================
+ ClientHub — WEBSITE GUIDE (how to use the app, page by page)
+===============================================================================
+A walkthrough of every screen, what each role sees, and a suggested demo flow
+you can use to show the project to recruiters or in a viva.
+
+-------------------------------------------------------------------------------
+GETTING IN
+-------------------------------------------------------------------------------
+Open the frontend (http://localhost:5173 locally, or your live URL).
+
+The login page does NOT print the demo credentials — that keeps the demo looking
+like a real product rather than a tutorial. Type them in:
+
+  Admin        admin@demo.com    Demo@1234   -> full control
+  Team Member  team@demo.com     Demo@1234   -> works on tasks
+  Client       client@demo.com   Demo@1234   -> client portal
+
+The complete list of eight demo accounts is in DEMO_LOGINS.txt, which is kept
+outside the git repository.
+
+After login, "/" automatically sends you to the right dashboard for your role.
+
+-------------------------------------------------------------------------------
+PAGES & ROUTES
+-------------------------------------------------------------------------------
+PUBLIC (no login):
+  /login            Sign in.
+  /signup           Create an account (always registers as a Team Member —
+                    see the security note below).
+  /forgot-password  Request a password-reset link.
+  /reset-password   Set a new password from the emailed link.
+
+AUTHENTICATED (inside the dashboard shell with sidebar + navbar):
+  /admin            Admin/Team dashboard — KPI tiles, revenue & progress charts.
+  /client           Client dashboard — your projects, progress, invoices, AI summary.
+  /clients          Manage clients (Admin/Team only) — list, search, add, archive.
+  /projects         All projects you can see (clients see only their own).
+  /projects/:id     Project detail — Kanban board, tasks, comments, AI summary,
+                    timeline, and the project's invoices.
+  /invoices         Invoices list — create, export PDF, pay (client).
+  *                 Friendly 404 page for any unknown URL.
+
+SECURITY NOTE: the public signup form never accepts a role — everyone who signs
+up becomes a Team Member. The admin account comes from the seed, and client
+logins are created by an admin when they add a client. Accepting a role from the
+request body would let anyone make themselves an admin.
+
+ACCESS NOTE: the UI hides what you can't use, but the BACKEND also enforces roles
+and tenant isolation — a client literally cannot fetch another client's data even
+by calling the API directly with their own valid token.
+
+-------------------------------------------------------------------------------
+WHAT EACH ROLE CAN DO
+-------------------------------------------------------------------------------
+ADMIN
+  - Add / archive clients, and create a client portal login while doing so.
+  - Create projects (budget, dates, status) for any client.
+  - Create, assign and move tasks on the Kanban; comment; log hours.
+  - Create invoices, export PDFs, track payment status.
+  - See agency-wide analytics (revenue, pending, overdue, project counts).
+  - Trigger the AI weekly summary on demand ("Generate Now") per project.
+
+TEAM MEMBER
+  - Same project/task workspace as admin, and the same dashboard.
+  - Can create and move tasks, comment, and log hours.
+  - Cannot create clients, projects or invoices, and cannot delete tasks —
+    those are admin-only.
+
+CLIENT
+  - Sees ONLY their own projects, progress %, and timelines.
+  - Reads the AI weekly progress summary + risk flag, including past summaries.
+  - Views their invoices, downloads PDFs, and pays online (Razorpay test mode).
+  - Receives real-time + email notifications.
+  - Everything else is read-only.
+
+-------------------------------------------------------------------------------
+KEY FEATURES — WHERE TO FIND THEM
+-------------------------------------------------------------------------------
+- Kanban board      : open any project -> /projects/:id. Drag cards between
+                      To Do / In Progress / Review / Done. Click a card (don't
+                      drag it) for details, comments, priority and hours.
+                      The move saves optimistically and rolls back if it fails.
+- AI weekly summary : on the project detail page and the client dashboard. Shows
+                      a plain-language summary and a coloured risk badge. If the
+                      AI is unavailable it says so and shows a computed summary.
+- Invoicing         : /invoices -> "PDF" downloads a generated invoice. As a
+                      client, "Pay Now" opens the Razorpay test checkout.
+                      Overdue invoices are still payable — a daily job flips
+                      past-due invoices from pending to overdue automatically.
+- Notifications     : the bell in the navbar updates in real time via Socket.io.
+                      Click outside it or press Escape to dismiss the dropdown.
+                      Important events also send an email.
+- Analytics         : the dashboards (/admin, /client) render Recharts graphs.
+- Dark mode         : the ☀️/🌙 button in the navbar. Your choice is remembered,
+                      and it is applied before the page paints, so there is no
+                      white flash when you reload.
+- Mobile            : below tablet width the sidebar collapses into a ☰ drawer
+                      in the navbar. It closes when you pick a page, tap outside
+                      it, or press Escape.
+
+-------------------------------------------------------------------------------
+KEYBOARD & ACCESSIBILITY
+-------------------------------------------------------------------------------
+- Escape closes modals and the notification dropdown.
+- Tab stays inside an open modal (focus trap), and focus returns to whatever
+  opened it when it closes.
+- Kanban cards are reachable by Tab and open with Enter or Space.
+- The page behind a modal does not scroll while the modal is open.
+
+-------------------------------------------------------------------------------
+SUGGESTED 3-MINUTE DEMO FLOW (great for interviews)
+-------------------------------------------------------------------------------
+  1. Log in as ADMIN. Point out the KPI tiles and the two charts.
+  2. Go to /clients. Type in the search box and mention it is debounced — one
+     request per search, not one per keystroke.
+  3. Open a project (/projects/:id). Drag a task across the Kanban and watch the
+     progress % update. Click a different card to open its comment thread.
+  4. Show the AI weekly summary. Explain the graceful fallback: if Groq is down
+     or the key is missing, the user still gets a useful summary.
+  5. Go to /invoices, open one, and download the PDF.
+  6. Toggle dark mode, then reload — no white flash.
+  7. Open a second browser / incognito window and log in as the CLIENT. Show
+     they see only their own data, the AI summary, and a "Pay Now" button.
+  8. Back as admin, do something that notifies the client (change a project
+     status) and show it arrive live in the other window.
+  9. (Bonus) Shrink the window to phone size and show the ☰ drawer, then show
+     the green GitHub Actions CI run and the docker-compose file.
+
+-------------------------------------------------------------------------------
+TIPS
+-------------------------------------------------------------------------------
+- If screens look empty, run the seed (in /server: npm run seed).
+- Razorpay is in TEST mode — use Razorpay's test card numbers; no real money.
+- The AI summary works even with no API key (it shows an automatic summary and
+  labels itself as such).
+- If you deployed on Render's free tier, open /api/health a minute before you
+  present — the first request after ~15 minutes idle takes ~30-50s to wake.
+===============================================================================

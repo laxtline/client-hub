@@ -1,0 +1,193 @@
+===============================================================================
+ ClientHub — MUST DO LIST  (the only work left, in priority order)
+===============================================================================
+ Read this once, do the 5 things, and stop. The code is finished.
+
+ THE CODE IS DONE. Every feature works, 44 tests pass, both packages lint
+ clean, and the production build succeeds. Nothing below asks you to write
+ code. What is missing is not features — it is PROOF that the features exist.
+
+ A recruiter spends 20-40 seconds on your project. They will not clone your
+ repo. They will not run npm install. They will click a link, look at a
+ screenshot, and decide. Items 1-3 below are what they actually see.
+
+ Time needed for everything: roughly one focused day.
+
+===============================================================================
+ 1. DEPLOY IT LIVE                                    [ HIGHEST VALUE — DO FIRST ]
+===============================================================================
+ WHY : A project with no live link loses most of its value on a resume. This
+       single item is worth more than every remaining item combined. Off-campus
+       recruiters will never run your code locally — the link IS the project.
+
+ HOW : Follow  docs/best free way to live this project for free.txt
+       Vercel (frontend) + Render (backend) + Neon (database). All free tiers,
+       no credit card. ~30 minutes end to end.
+
+ DONE WHEN :
+   [ ] Live URL opens and you can log in as admin@demo.com
+   [ ] All three roles work live (admin, team member, client)
+   [ ] The live URL is at the TOP of README.md as "Live Demo"
+   [ ] The live URL is on your resume
+
+ NOTE : Render's free tier sleeps after 15 minutes idle, so the first load can
+        take ~40 seconds. Open /api/health a minute before any demo. Optionally
+        point UptimeRobot (free) at /api/health every 10 minutes to keep it warm.
+
+===============================================================================
+ 2. PUT SCREENSHOTS IN THE README
+===============================================================================
+ WHY : docs/screenshots/ is currently empty except for a placeholder. The README
+       is the single most-viewed file in any repo. Text alone does not sell a UI
+       project — recruiters scroll for images and leave if there are none.
+
+ HOW : Run the app, log in as admin@demo.com, and capture these 6:
+
+       [ ] 1. Admin Dashboard   — KPI tiles + revenue chart (this is the hero
+                                  image; put it directly under the title)
+       [ ] 2. Kanban Board      — project detail page, cards across 4 columns
+       [ ] 3. AI Summary Panel  — the generated summary with its risk badge.
+                                  THIS IS YOUR DIFFERENTIATOR. Do not skip it.
+       [ ] 4. Invoice + PDF     — invoice list, and the generated PDF beside it
+       [ ] 5. Client Portal     — log in as client@demo.com, show their dashboard
+       [ ] 6. Dark Mode         — any page with the theme toggled
+
+       Save them into docs/screenshots/ and embed in README.md:
+           ![Admin Dashboard](docs/screenshots/admin-dashboard.png)
+
+ TIPS : Use a clean browser window — no bookmarks bar, no other tabs, no
+        personal info visible. Full-screen, 1920x1080. Consistent zoom on all six.
+
+===============================================================================
+ 3. RECORD A 60-90 SECOND DEMO VIDEO
+===============================================================================
+ WHY : This converts more interview calls than anything else on the list. It
+       proves the app is real and working, and it costs the viewer no effort.
+
+ HOW : Any screen recorder (Windows: Win+G, or OBS / Loom — all free).
+       Upload unlisted to YouTube or Google Drive, link it in the README.
+
+ SCRIPT (keep it under 90 seconds, no talking required — captions are fine):
+
+       0:00  Login as admin -> dashboard loads, KPIs and charts visible
+       0:15  Open a project -> drag a Kanban card between columns
+             -> progress % updates immediately
+       0:35  Click "Generate Now" on the AI panel -> summary + risk flag appear
+       0:50  Open Invoices -> download an invoice PDF
+       1:05  Log out -> log in as client@demo.com
+             -> show they see ONLY their own projects and invoices
+       1:20  Toggle dark mode. End.
+
+ THE POINT OF THE LAST BEAT : showing the client seeing less data is what proves
+ you actually implemented multi-tenant isolation. Do not cut it.
+
+===============================================================================
+ 4. ADD THE ER DIAGRAM + ARCHITECTURE DIAGRAM
+===============================================================================
+ WHY : Compulsory for the college report and viva. Also the fastest way to show
+       an interviewer you can think about system design, not just write code.
+
+ HOW : ER diagram — easiest route is to open Prisma Studio (npm run prisma:studio)
+       or paste src/prisma/schema.prisma into dbdiagram.io, then export as PNG.
+
+       Architecture diagram — draw.io / Excalidraw, one simple flow:
+
+           Browser (React SPA on Vercel)
+                |  REST + WebSocket
+                v
+           Express API (Render)  ->  PostgreSQL (Neon)
+                |
+                +--> Groq API      (AI weekly summaries)
+                +--> Razorpay      (payments + webhook)
+                +--> ImageKit      (logo uploads)
+                +--> SMTP          (email notifications)
+                +--> node-cron     (weekly AI job, daily overdue sweep)
+
+ DONE WHEN :
+   [ ] Both diagrams saved as PNG in docs/
+   [ ] Both embedded in README.md and in the project report
+
+===============================================================================
+ 5. WRITE YOUR "WHY I BUILT THIS" PARAGRAPH
+===============================================================================
+ WHY : It is the first question in every single interview, and a weak answer
+       here undoes a strong project. Write it down, say it out loud 5 times.
+
+ THE ANSWER (adapt to your own words — do not read it robotically):
+
+   "Small design and development agencies lose clients over communication, not
+    over quality of work. Clients don't know what's happening on their project,
+    so they keep asking for updates, and the team loses hours answering. I built
+    ClientHub so each client gets a portal with live project progress, their
+    invoices, and an AI-generated weekly summary that goes out automatically —
+    so the update happens without anyone writing it. The interesting engineering
+    problems were multi-tenant data isolation, verifying Razorpay webhook
+    signatures so payment state can't be forged, and making the AI feature
+    degrade gracefully when the API is unavailable."
+
+ DONE WHEN :
+   [ ] You can say this in under 45 seconds without reading it
+
+===============================================================================
+ DO NOT ADD ANY OF THIS  (this is the "stop changing the project" list)
+===============================================================================
+ Every one of these will feel tempting. None of them will get you an interview.
+ They add risk, add bugs, and cost days. The project is already stronger than
+ the typical MCA submission WITHOUT them.
+
+   x  TypeScript migration       — huge effort, zero recruiter impact now
+   x  Redux / Zustand            — Context is correct at this app's size;
+                                   adding Redux makes you look like you
+                                   over-engineer
+   x  GraphQL                    — REST is right here, and you'd rewrite
+                                   every endpoint
+   x  Microservices / Kubernetes — actively wrong for a project this size, and
+                                   an interviewer will ask why you did it
+   x  Elasticsearch              — Postgres search is more than enough
+   x  Real-time chat             — Socket.io is already demonstrated by the
+                                   notification bell
+   x  React Native mobile app    — a second project's worth of work
+   x  Swagger / OpenAPI UI       — the Postman collection already covers this
+   x  100% test coverage         — 44 meaningful tests reads better than 300
+                                   trivial ones
+   x  i18n / multi-language      — nobody will ask
+   x  PWA / offline mode         — nobody will ask
+   x  More dashboard charts      — two good charts beat six noisy ones
+
+ IF YOU HAVE SPARE TIME, spend it on items 1-3 above, not on new features.
+ A deployed project with screenshots and a demo video beats an undeployed
+ project with twice the features. Every time.
+
+===============================================================================
+ WHAT IS ALREADY DONE  (so you don't redo it)
+===============================================================================
+   [x] 9 database models, 3 roles, full multi-tenant isolation
+   [x] JWT auth + bcrypt + role-based route guards
+   [x] Clients / Projects / Tasks / Invoices CRUD with search & pagination
+   [x] Kanban board with drag-and-drop and optimistic updates
+   [x] "My Tasks" cross-project view for team members
+   [x] Invoice PDF generation
+   [x] Razorpay payments with HMAC-verified webhook and idempotency
+   [x] Groq AI weekly summaries with deterministic fallback
+   [x] Real-time notifications (Socket.io) + email
+   [x] Admin & client analytics dashboards
+   [x] Cron: weekly AI summaries, daily overdue sweep, reset-token cleanup
+   [x] Password reset backed by hashed, single-use DB tokens
+   [x] Dark mode, toasts, error boundary, lazy-loaded routes
+   [x] Helmet, CORS, rate limiting, Zod validation, graceful shutdown
+   [x] 29 server + 15 client tests, GitHub Actions CI
+   [x] Docker + docker-compose + nginx config
+   [x] Project report (.docx), presentation (.pptx), Postman collection
+
+===============================================================================
+ FINAL CHECKLIST — tick all 5 and you are finished
+===============================================================================
+   [ ] 1. Deployed live, URL in README + resume
+   [ ] 2. Six screenshots in README
+   [ ] 3. Demo video recorded and linked
+   [ ] 4. ER + architecture diagrams in docs/ and README
+   [ ] 5. "Why I built this" rehearsed out loud
+
+   Then read Interview.txt once before any interview. That's it. Stop editing
+   the project.
+===============================================================================

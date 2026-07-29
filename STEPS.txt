@@ -1,0 +1,164 @@
+============================================================
+  CLIENTHUB — SETUP, LOGIN FIX & DEPLOYMENT STEPS
+============================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — FIX LOGIN (LOCAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Login fail hone ka reason: Docker/PostgreSQL band tha + server/.env missing thi.
+Dono fix ho gaye. Ab ye karo:
+
+1. Docker Desktop open karo (Start menu se)
+2. Wait karo jab tak Docker fully start ho jaye (tray icon green ho)
+3. Terminal open karo, project folder me jao:
+
+   cd C:\Users\Admin\Desktop\CLIENTHUB\CLIENTHUB\clienthub
+
+4. Database start karo:
+
+   docker compose up -d db
+
+5. Wait karo ~10 seconds, phir database schema + seed data daalo:
+
+   cd server
+   npm install
+   npx prisma db push
+   npm run seed
+   cd ..
+
+6. Server start karo (naya terminal):
+
+   cd server
+   npm run dev
+
+7. Frontend start karo (aur ek naya terminal):
+
+   cd client
+   npm install
+   npm run dev
+
+8. Browser me jao: http://localhost:5173
+
+DEMO LOGIN CREDENTIALS (sab ka password same hai):
+   Admin:       admin@demo.com   /  Demo@1234
+   Team Member: team@demo.com    /  Demo@1234
+   Client:      client@demo.com  /  Demo@1234
+
+Ya seedha docker compose se sab ek saath chala sakte ho:
+
+   docker compose up --build
+
+Phir http://localhost:5173 pe jao.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — GITHUB PE PUSH KARO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Remote already set hai: https://github.com/laxtline/Project---Client-Hub.git
+6 commits ready hain. Bas ye chalaao:
+
+   cd C:\Users\Admin\Desktop\CLIENTHUB\CLIENTHUB\clienthub
+   git push -u origin main
+
+Agar GitHub password maange toh Personal Access Token use karo:
+   GitHub → Settings → Developer settings → Personal access tokens → Generate new token
+   Scope: repo (full control)
+   Token ko password ki jagah paste karo
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — BACKEND DEPLOY KARO (Render — FREE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTE: Backend Cloudflare Workers pe nahi chalega (Socket.io + Prisma + node-cron
+      Workers support nahi karte). Render use karo — free tier available hai.
+
+1. https://render.com pe jao → Sign up (GitHub se)
+
+2. PostgreSQL database banao:
+   - "New +" → "PostgreSQL"
+   - Name: clienthub-db
+   - Plan: Free
+   - "Create Database" click karo
+   - "Internal Database URL" copy karke rakh lo
+
+3. Web Service banao:
+   - "New +" → "Web Service"
+   - GitHub repo connect karo: Project---Client-Hub
+   - Settings:
+       Name:             clienthub-api
+       Root Directory:   server
+       Runtime:          Node
+       Build Command:    npm install && npx prisma generate && npx prisma db push
+       Start Command:    npm start
+       Plan:             Free
+
+4. Environment Variables add karo (Render dashboard → Environment):
+
+   DATABASE_URL        = [Internal Database URL jo Step 2 me copy kiya]
+   JWT_SECRET          = [koi bhi 32+ character random string, e.g.: MyStr0ngS3cr3tKey2026ForClientHub!]
+   NODE_ENV            = production
+   CLIENT_URL          = https://[tera-app-naam].pages.dev   ← Step 4 ke baad update karna
+   GROQ_API_KEY        = [apni Groq key — server/.env file me se copy karo]
+   GROQ_MODEL          = llama-3.3-70b-versatile
+   IMAGEKIT_PUBLIC_KEY = [apni ImageKit public key — server/.env me se]
+   IMAGEKIT_PRIVATE_KEY= [apni ImageKit private key — server/.env me se]
+   IMAGEKIT_URL_ENDPOINT= [apna ImageKit URL endpoint — server/.env me se]
+
+5. "Create Web Service" click karo
+6. Deploy hone ke baad URL milega, e.g.: https://clienthub-api.onrender.com
+   Ye URL note kar lo — Step 4 me chahiye hoga
+
+7. Seed data daalne ke liye Render dashboard → Shell:
+   npm run seed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — FRONTEND DEPLOY KARO (Cloudflare Pages)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. https://dash.cloudflare.com pe jao
+2. Workers & Pages → Create application → Pages → Connect to Git
+3. GitHub repo select karo: Project---Client-Hub
+4. Build settings:
+       Framework preset:      Vite
+       Build command:         cd client && npm install && npm run build
+       Build output directory: client/dist
+       Root directory:        (khali chhod do)
+
+5. Environment Variables add karo:
+   VITE_API_URL    = https://clienthub-api.onrender.com/api   ← Render URL from Step 3
+   VITE_SOCKET_URL = https://clienthub-api.onrender.com
+
+6. "Save and Deploy" click karo
+7. Deploy hone ke baad URL milega, e.g.: https://clienthub-xyz.pages.dev
+
+8. Wapas Render jao → clienthub-api → Environment Variables:
+   CLIENT_URL update karo = https://clienthub-xyz.pages.dev
+   "Save Changes" → service restart hogi
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — TEST KARO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. https://[tera-app].pages.dev pe jao
+2. Login karo: admin@demo.com / Demo@1234
+3. Kaam kare toh sab theek hai!
+
+Agar login fail ho:
+   - Check karo: https://clienthub-api.onrender.com/api/health
+     Response aana chahiye: {"status":"ok","database":"ok",...}
+   - Render logs dekho: Dashboard → clienthub-api → Logs
+   - CLIENT_URL sahi set hai ya nahi check karo (CORS error aata hai galat hone pe)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GITLAB ALTERNATIVE (optional)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GitLab pe bhi push kar sakte ho, lekin backend wahan bhi nahi chalega.
+GitLab Pages sirf frontend ke liye hai. Backend Render pe hi rakhna padega.
+
+GitLab pe push karna:
+   git remote add gitlab https://gitlab.com/[username]/clienthub.git
+   git push gitlab main
+
+============================================================

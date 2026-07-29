@@ -1,0 +1,225 @@
+{
+  "info": {
+    "name": "ClientHub API",
+    "_postman_id": "clienthub-api-collection",
+    "description": "Complete REST API for ClientHub by Suryakanta Pradhan. Set the collection variables `baseUrl` (default http://localhost:5000/api) and `token` (paste the JWT returned by Login). Every protected request sends `Authorization: Bearer {{token}}`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "clientId", "value": "" },
+    { "key": "taskId", "value": "" },
+    { "key": "invoiceId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/signup",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"new@demo.com\",\n  \"password\": \"Demo@1234\",\n  \"role\": \"admin\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@demo.com\",\n  \"password\": \"Demo@1234\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Auto-save the JWT to the collection variable for later requests.",
+                  "const data = pm.response.json();",
+                  "if (data.token) pm.collectionVariables.set('token', data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        { "name": "Me", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@demo.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/reset-password",
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"<token-from-email>\",\n  \"password\": \"NewPass@123\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        { "name": "List Clients", "request": { "method": "GET", "url": "{{baseUrl}}/clients?search=&status=active&page=1&limit=10" } },
+        { "name": "Get Client", "request": { "method": "GET", "url": "{{baseUrl}}/clients/{{clientId}}" } },
+        {
+          "name": "Create Client",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/clients",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Globex\",\n  \"companyName\": \"Globex Ltd\",\n  \"contactEmail\": \"hello@globex.com\",\n  \"contactPhone\": \"+91 99999 22222\",\n  \"portalPassword\": \"Demo@1234\"\n}" }
+          }
+        },
+        {
+          "name": "Update Client",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/clients/{{clientId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Updated note\"\n}" }
+          }
+        },
+        { "name": "Archive Client", "request": { "method": "PATCH", "url": "{{baseUrl}}/clients/{{clientId}}/archive" } },
+        { "name": "Delete Client", "request": { "method": "DELETE", "url": "{{baseUrl}}/clients/{{clientId}}" } }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        { "name": "List Projects", "request": { "method": "GET", "url": "{{baseUrl}}/projects?page=1&limit=10" } },
+        { "name": "Get Project", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}" } },
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/projects",
+            "body": { "mode": "raw", "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"title\": \"Website Redesign\",\n  \"description\": \"Marketing site revamp\",\n  \"budget\": 250000,\n  \"deadline\": \"2026-08-15\",\n  \"status\": \"in_progress\"\n}" }
+          }
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/projects/{{projectId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"completed\"\n}" }
+          }
+        },
+        { "name": "Archive Project", "request": { "method": "PATCH", "url": "{{baseUrl}}/projects/{{projectId}}/archive" } }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        { "name": "List Tasks (by project)", "request": { "method": "GET", "url": "{{baseUrl}}/tasks?projectId={{projectId}}" } },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/tasks",
+            "body": { "mode": "raw", "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"title\": \"Build homepage\",\n  \"priority\": \"high\"\n}" }
+          }
+        },
+        {
+          "name": "Update Task Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/tasks/{{taskId}}/status",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"in_progress\"\n}" }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/tasks/{{taskId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"hoursLogged\": 6,\n  \"priority\": \"medium\"\n}" }
+          }
+        },
+        { "name": "Delete Task", "request": { "method": "DELETE", "url": "{{baseUrl}}/tasks/{{taskId}}" } },
+        { "name": "List Comments", "request": { "method": "GET", "url": "{{baseUrl}}/tasks/{{taskId}}/comments" } },
+        {
+          "name": "Add Comment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/tasks/{{taskId}}/comments",
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Looks good, ready for review.\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        { "name": "List Invoices", "request": { "method": "GET", "url": "{{baseUrl}}/invoices?page=1&limit=10" } },
+        { "name": "Get Invoice", "request": { "method": "GET", "url": "{{baseUrl}}/invoices/{{invoiceId}}" } },
+        { "name": "Suggest Line Items", "request": { "method": "GET", "url": "{{baseUrl}}/invoices/suggest/{{projectId}}" } },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/invoices",
+            "body": { "mode": "raw", "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"lineItems\": [{ \"description\": \"Design phase\", \"quantity\": 1, \"rate\": 80000 }],\n  \"taxRate\": 18,\n  \"dueDate\": \"2026-07-30\"\n}" }
+          }
+        },
+        { "name": "Download Invoice PDF", "request": { "method": "GET", "url": "{{baseUrl}}/invoices/{{invoiceId}}/pdf" } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        { "name": "Create Order", "request": { "method": "POST", "url": "{{baseUrl}}/payments/order/{{invoiceId}}" } },
+        { "name": "Payment History", "request": { "method": "GET", "url": "{{baseUrl}}/payments/history" } }
+      ]
+    },
+    {
+      "name": "AI Summary",
+      "item": [
+        { "name": "Generate Summary (admin)", "request": { "method": "POST", "url": "{{baseUrl}}/ai/summary/{{projectId}}" } },
+        { "name": "Get Summaries", "request": { "method": "GET", "url": "{{baseUrl}}/ai/summary/{{projectId}}" } }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        { "name": "List Notifications", "request": { "method": "GET", "url": "{{baseUrl}}/notifications" } },
+        { "name": "Mark All Read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/read-all" } },
+        { "name": "Mark One Read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/<id>/read" } }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        { "name": "Admin Analytics", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/admin" } },
+        { "name": "Client Analytics", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/client" } }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [{ "name": "Health Check", "request": { "method": "GET", "url": "{{baseUrl}}/health" } }]
+    }
+  ]
+}

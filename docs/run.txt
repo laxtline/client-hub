@@ -1,0 +1,185 @@
+===============================================================================
+ ClientHub — HOW TO RUN (step by step)
+===============================================================================
+Two ways to run it: (A) Docker — easiest, one command; (B) Local dev — for
+coding. Pick one. Demo logins are at the bottom.
+
+-------------------------------------------------------------------------------
+PREREQUISITES
+-------------------------------------------------------------------------------
+- Node.js 20+ and npm             (check: node -v   npm -v)
+- PostgreSQL 14+                  (only for LOCAL dev; Docker provides its own)
+- Docker Desktop                  (only for the Docker option)
+- (Optional) API keys: Groq, Razorpay test, ImageKit, SMTP.
+  The app runs WITHOUT them — AI uses a fallback, and those features stay idle.
+
+===============================================================================
+ OPTION A — DOCKER (recommended, one command)
+===============================================================================
+From the project root (the folder with docker-compose.yml):
+
+  1) (optional) create a .env next to docker-compose.yml with your secrets:
+       JWT_SECRET=some_long_random_string_32_chars_or_more
+       GROQ_API_KEY=gsk_...                 (optional)
+       RAZORPAY_KEY_ID=rzp_test_...         (optional)
+       RAZORPAY_KEY_SECRET=...              (optional)
+
+     If you skip this, the safe demo defaults in docker-compose.yml are used.
+
+  2) docker compose up --build
+
+  3) Open:
+       Frontend  ->  http://localhost:5173
+       API       ->  http://localhost:5000/api/health
+                     (should say {"status":"ok", ... ,"database":"ok"})
+
+  4) Stop:    Ctrl+C, then   docker compose down
+     Wipe DB: docker compose down -v
+
+WHAT HAPPENS ON FIRST BOOT: the server container runs `prisma db push` to build
+the schema, then runs the seed script, then starts the API. The seed is
+self-guarding — it SKIPS itself if the database already has users, so restarting
+the stack never wipes your data. To force a fresh reseed:
+
+       docker compose exec -e FORCE_SEED=true server npm run seed
+
+===============================================================================
+ OPTION B — LOCAL DEV (two terminals)
+===============================================================================
+--- Terminal 1: BACKEND ---
+  cd server
+  cp .env.example .env          # then edit values (at least DATABASE_URL + JWT_SECRET)
+  npm install                   # postinstall runs `prisma generate` automatically
+  npx prisma db push            # creates the tables from schema.prisma
+  npm run seed                  # loads demo accounts + sample data
+  npm run dev                   # API on http://localhost:5000
+
+--- Terminal 2: FRONTEND ---
+  cd client
+  cp .env.example .env          # set VITE_API_URL=http://localhost:5000/api
+  npm install
+  npm run dev                   # app on http://localhost:5173
+
+(Windows note: if "cp" is unavailable, use "copy .env.example .env".)
+
+(Windows PowerShell note: use Windows-style paths, e.g.
+   cd C:\path\to\clienthub\server
+ The Unix-style "/c/Users/..." path only works in Git Bash / WSL, NOT in
+ PowerShell — there it fails with "Cannot find path 'C:\c\Users\...'".)
+
+WHY `db push` AND NOT `migrate dev`: this project ships schema.prisma as the
+single source of truth and does not commit a migration history, so `db push` is
+the correct command. `npx prisma migrate dev` also works locally, but it will
+generate migration files this repository does not track.
+
+-------------------------------------------------------------------------------
+DATABASE_URL EXAMPLE (local Postgres)
+-------------------------------------------------------------------------------
+  DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/clienthub?schema=public"
+Create the DB first if needed:  createdb clienthub   (or use pgAdmin)
+
+===============================================================================
+ USEFUL COMMANDS
+===============================================================================
+Backend (in /server):
+  npm run dev              start API with auto-reload (nodemon)
+  npm start                start API (production)
+  npm test                 run server tests (Vitest) — 29 tests
+  npm run lint             run ESLint (should report zero problems)
+  npm run format           auto-format with Prettier
+  npm run seed             load demo data (skips if data already exists)
+  npm run prisma:push      apply schema.prisma to the database
+  npm run prisma:generate  regenerate the Prisma client
+  npm run prisma:studio    open a GUI to browse the database
+
+Frontend (in /client):
+  npm run dev              start Vite dev server
+  npm run build            production build (outputs to dist/)
+  npm run preview          preview the production build
+  npm test                 run client tests (Vitest) — 15 tests
+  npm run test:watch       re-run tests as you edit
+  npm run lint             run ESLint (should report zero problems)
+
+===============================================================================
+ ENVIRONMENT VARIABLES
+===============================================================================
+REQUIRED (the server refuses to start without these):
+  DATABASE_URL         PostgreSQL connection string
+  JWT_SECRET           long random string (32+ chars is enforced in production)
+
+RECOMMENDED:
+  PORT                 default 5000
+  NODE_ENV             development | production
+  CLIENT_URL           the frontend origin — used for CORS, sockets, reset links
+  JWT_EXPIRES_IN       default 7d
+  CRON_TIMEZONE        default Asia/Kolkata (when the scheduled jobs fire)
+
+OPTIONAL (each feature degrades gracefully if absent):
+  GROQ_API_KEY, GROQ_MODEL                            AI weekly summary
+  RAZORPAY_KEY_ID, _KEY_SECRET, _WEBHOOK_SECRET       online payments
+  IMAGEKIT_PUBLIC_KEY, _PRIVATE_KEY, _URL_ENDPOINT    client logo uploads
+  SMTP_HOST, _PORT, _USER, _PASS, _FROM               outgoing email
+
+Frontend (must be set at BUILD time — Vite bakes them into the bundle):
+  VITE_API_URL          e.g. http://localhost:5000/api
+  VITE_SOCKET_URL       e.g. http://localhost:5000
+  VITE_RAZORPAY_KEY_ID  test key for the Pay Now widget
+
+On boot the server prints exactly which optional integrations are missing, so
+you never have to guess why a feature is idle.
+
+===============================================================================
+ DEMO CREDENTIALS
+===============================================================================
+Password for every demo account:  Demo@1234
+
+  Admin        admin@demo.com
+  Team Member  team@demo.com   (also priya@demo.com, arjun@demo.com, sana@demo.com)
+  Client       client@demo.com (also globex@demo.com, initech@demo.com, stark@demo.com)
+
+These are intentionally NOT displayed on the login page. The full list is in
+DEMO_LOGINS.txt, which is kept outside the git repository.
+
+===============================================================================
+ TROUBLESHOOTING
+===============================================================================
+- "Can't reach database server"   -> Postgres isn't running, or DATABASE_URL is
+                                     wrong. Test it with: npx prisma db push
+- "PrismaClient is not generated" -> run: npx prisma generate (or just npm install)
+- "Missing required environment variables" -> the server names the exact ones;
+                                     set them in server/.env and restart.
+- Port already in use             -> change PORT (server) or the Vite port, or
+                                     stop whatever is using 5000 / 5173.
+- Login fails locally with a
+  confusing error ("Something went
+  wrong on our end", or a route-
+  not-found), even though the page
+  loads                           -> a DIFFERENT app is already answering on
+                                     port 5000, so the frontend is talking to
+                                     the wrong server. Free the port first:
+                                       npx kill-port 5000        (any shell)
+                                     then start THIS project's backend again.
+                                     Confirm the right server responds:
+                                       http://localhost:5000/api/health
+                                     should return {"status":"ok", ...}. A
+                                     different JSON shape means it is not
+                                     ClientHub's API.
+- CORS errors in the browser      -> CLIENT_URL (server .env) must match the
+                                     frontend origin EXACTLY, with no trailing
+                                     slash, and VITE_API_URL must point at the API.
+- Real-time notifications silent  -> same cause as CORS: the socket handshake
+                                     uses CLIENT_URL too. Check the console.
+- Login works but data is empty   -> run the seed: npm run seed
+- Seed says "skipping"            -> that's the safety guard; set FORCE_SEED=true
+                                     to wipe and reseed.
+- AI summary says "unavailable"   -> no GROQ_API_KEY set; that's the intended
+                                     fallback, everything else still works.
+- "Pay Now" returns 503           -> Razorpay keys aren't configured. Expected
+                                     when running without them.
+- Changed a VITE_* variable and nothing happened -> they are baked in at build
+                                     time; restart the dev server, or rebuild.
+- /api/health says database "unreachable" -> the API is up but Postgres is not.
+                                     The endpoint returns 503 on purpose so a
+                                     host's health probe fails loudly instead of
+                                     reporting a broken deploy as healthy.
+===============================================================================

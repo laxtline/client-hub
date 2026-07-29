@@ -1,0 +1,351 @@
+===============================================================================
+ ClientHub — IMPORTANT FILES & FOLDERS FOR DEPLOYMENT
+===============================================================================
+ What this file is: a complete inventory of every file and folder in this
+ project, split into what is REQUIRED to deploy and what is not.
+
+ Short answer: push the WHOLE repository to GitHub. Render and Vercel each
+ build only the sub-folder you point them at (server/ and client/), so the
+ extra files cost you nothing. This list exists so you know what must never
+ be deleted, and so you can answer "what does this file do?" in a viva.
+
+===============================================================================
+ SECTION 1 — THE 6 FILES THAT DEPLOYMENT ACTUALLY DEPENDS ON
+===============================================================================
+ If any ONE of these is missing or wrong, the deploy fails. Learn these six.
+
+  1. server/package.json
+     Declares every backend dependency, the start script, AND two things that
+     are easy to miss:
+       - "postinstall": "prisma generate"  -> the Prisma client is generated
+         automatically during npm install, so Render needs no extra command.
+       - "prisma": { "schema": "src/prisma/schema.prisma" }  -> tells Prisma
+         where the schema lives, because it is NOT in the default location.
+
+  2. server/src/prisma/schema.prisma
+     The database blueprint. `npx prisma db push` reads this file and creates
+     the tables in Neon. Every model lives here (User, Client, Project, Task,
+     TaskComment, Invoice, Payment, Notification, AISummary, PasswordResetToken).
+
+  3. server/src/server.js
+     The backend entry point. This is literally the Render Start Command
+     (`node src/server.js`). It boots Express and attaches Socket.io.
+
+  4. client/package.json
+     Frontend dependencies and the "build" script Vercel runs.
+
+  5. client/index.html
+     Vite's HTML entry point. Vite will not build without it. It also holds the
+     inline dark-mode script that runs before React mounts (no white flash).
+
+  6. client/vite.config.js
+     Build configuration — output settings, manual vendor chunks, and the
+     Vitest config. Controls how the production bundle is split.
+
+===============================================================================
+ SECTION 2 — BACKEND (deployed to Render, Root Directory = server)
+===============================================================================
+
+ server/
+ |
+ |-- package.json              REQUIRED  deps, scripts, prisma schema path
+ |-- package-lock.json         REQUIRED  exact dependency versions (reproducible
+ |                                       builds — never delete this)
+ |-- .env.example              reference only (real values go in Render's
+ |                                       Environment tab, never in the repo)
+ |-- Dockerfile                optional  only for Docker deploys / docker-compose
+ |-- .dockerignore             optional  keeps node_modules out of the image
+ |-- eslint.config.js          dev only  linting, not needed at runtime
+ |
+ |-- src/
+     |
+     |-- server.js             REQUIRED  entry point (Render Start Command)
+     |-- app.js                REQUIRED  Express app, middleware order, route
+     |                                   mounting. The payment webhook is
+     |                                   mounted with express.raw() BEFORE
+     |                                   express.json() — order matters here.
+     |
+     |-- prisma/
+     |   |-- schema.prisma     REQUIRED  database schema (db push reads this)
+     |   |-- seed.js           REQUIRED  demo data — run ONCE via Render Shell
+     |                                   with `npm run seed`
+     |
+     |-- config/               REQUIRED  external service wiring
+     |   |-- db.js                       Prisma client instance
+     |   |-- validateEnv.js              aborts boot if env vars are missing or
+     |   |                               the JWT secret is weak in production
+     |   |-- groq.js                     AI client        (optional key)
+     |   |-- razorpay.js                 payment client   (optional key)
+     |   |-- imagekit.js                 image uploads    (optional key)
+     |   |-- multer.js                   upload handling (memory, 2 MB cap)
+     |
+     |-- controllers/          REQUIRED  request/response handling only
+     |   |-- authController.js           login, signup, forgot/reset password
+     |   |-- clientController.js
+     |   |-- projectController.js
+     |   |-- taskController.js           includes listMyTasks (My Tasks page)
+     |   |-- invoiceController.js
+     |   |-- paymentController.js        includes the webhook handler
+     |   |-- aiController.js
+     |   |-- analyticsController.js
+     |   |-- notificationController.js
+     |
+     |-- routes/               REQUIRED  one file per resource, matches
+     |   |                               controllers 1:1
+     |   |-- authRoutes.js
+     |   |-- clientRoutes.js
+     |   |-- projectRoutes.js
+     |   |-- taskRoutes.js               NOTE: /tasks/mine is declared BEFORE
+     |   |                               /tasks/:id, otherwise "mine" would be
+     |   |                               read as an id
+     |   |-- invoiceRoutes.js
+     |   |-- paymentRoutes.js
+     |   |-- aiRoutes.js
+     |   |-- analyticsRoutes.js
+     |   |-- notificationRoutes.js
+     |
+     |-- middleware/           REQUIRED  the security layer
+     |   |-- authMiddleware.js           verifies the JWT, re-reads the user
+     |   |                               from the DB on every request
+     |   |-- roleMiddleware.js           role-based route guards
+     |   |-- validateRequest.js          Zod schema validation
+     |   |-- rateLimiter.js              10 auth attempts per 15 min per IP
+     |   |-- errorHandler.js             central error mapping (409/413/503)
+     |
+     |-- services/             REQUIRED  all business logic lives here
+     |   |-- aiSummaryService.js         Groq call + deterministic fallback
+     |   |-- paymentService.js           invoice status updates, idempotent
+     |   |-- invoiceService.js           totals, tax, line items
+     |   |-- emailService.js             Nodemailer
+     |   |-- notificationService.js      creates + emits notifications
+     |
+     |-- jobs/
+     |   |-- cronJobs.js       REQUIRED  weekly AI summaries, daily overdue
+     |                                   sweep, daily reset-token cleanup
+     |
+     |-- sockets/
+     |   |-- socketHandler.js  REQUIRED  Socket.io auth + per-user rooms
+     |
+     |-- utils/                REQUIRED
+     |   |-- calculateProgress.js        done tasks / total tasks
+     |   |-- generatePDF.js              invoice PDFs (pdfkit)
+     |   |-- webhookVerify.js            HMAC-SHA256 signature check
+     |   |-- logger.js                   Winston structured logging
+     |
+     |-- tests/                NOT needed at runtime — CI only
+         |-- auth.test.js
+         |-- calculations.test.js
+         |-- aiSummary.test.js
+         |-- security.test.js
+         |-- errorHandler.test.js
+
+===============================================================================
+ SECTION 3 — FRONTEND (deployed to Vercel, Root Directory = client)
+===============================================================================
+
+ client/
+ |
+ |-- package.json              REQUIRED  deps + the "build" script Vercel runs
+ |-- package-lock.json         REQUIRED  exact versions
+ |-- index.html                REQUIRED  Vite entry + pre-paint dark-mode script
+ |-- vite.config.js            REQUIRED  build config, chunk splitting, Vitest
+ |-- tailwind.config.js        REQUIRED  without it Tailwind emits no CSS and
+ |                                       the site builds completely unstyled
+ |-- postcss.config.js         REQUIRED  runs Tailwind + autoprefixer
+ |-- .env.example              reference only (real values go in Vercel)
+ |-- nginx.conf                optional  Docker/nginx serving only, not Vercel
+ |-- Dockerfile                optional  Docker deploys only
+ |-- .dockerignore             optional
+ |-- eslint.config.js          dev only
+ |
+ |-- src/
+     |
+     |-- main.jsx              REQUIRED  React root, mounts the app
+     |-- App.jsx               REQUIRED  provider tree (Auth, Theme, Toast,
+     |                                   Socket) + ErrorBoundary
+     |-- index.css             REQUIRED  Tailwind directives + base styles
+     |
+     |-- routes/
+     |   |-- AppRoutes.jsx     REQUIRED  every route + lazy imports + role
+     |                                   guards. A page not listed here is
+     |                                   unreachable.
+     |
+     |-- api/                  REQUIRED  one module per backend resource
+     |   |-- axiosClient.js              base URL + JWT interceptor. Reads
+     |   |                               VITE_API_URL — the single most common
+     |   |                               source of a broken deploy.
+     |   |-- authApi.js
+     |   |-- clientApi.js
+     |   |-- projectApi.js
+     |   |-- taskApi.js                  includes listMine
+     |   |-- invoiceApi.js
+     |   |-- paymentApi.js
+     |   |-- aiApi.js
+     |   |-- analyticsApi.js
+     |   |-- notificationApi.js
+     |
+     |-- pages/                REQUIRED  every screen
+     |   |-- Login.jsx
+     |   |-- Signup.jsx
+     |   |-- ForgotPassword.jsx
+     |   |-- ResetPassword.jsx
+     |   |-- AdminDashboard.jsx
+     |   |-- ClientDashboard.jsx
+     |   |-- ClientsPage.jsx
+     |   |-- ProjectsPage.jsx
+     |   |-- ProjectDetailPage.jsx
+     |   |-- MyTasksPage.jsx             cross-project assigned tasks
+     |   |-- InvoicesPage.jsx
+     |   |-- NotFound.jsx
+     |
+     |-- components/           REQUIRED
+     |   |-- common/                     Button, InputField, Modal, Loader,
+     |   |                               Badge, EmptyState, Pagination, Logo,
+     |   |                               Toaster, ErrorBoundary
+     |   |-- layout/                     Navbar, Sidebar, DashboardLayout,
+     |   |                               ProtectedRoute
+     |   |-- kanban/                     KanbanBoard, TaskColumn, TaskCard,
+     |   |                               TaskModal
+     |   |-- invoices/                   InvoiceTable, InvoiceForm
+     |   |-- dashboard/                  StatsCard, RevenueChart, ProgressChart
+     |   |-- notifications/              NotificationBell, NotificationList
+     |
+     |-- context/              REQUIRED  AuthContext, SocketContext,
+     |                                   ThemeContext, ToastContext, contexts.js
+     |
+     |-- hooks/                REQUIRED  useAuth, useFetch, useDebounce,
+     |                                   useSocket, useTheme, useToast
+     |
+     |-- utils/                REQUIRED  formatCurrency, dateHelpers, roleGuards
+     |
+     |-- test/
+         |-- setup.js          NOT needed at runtime — CI only
+
+ Frontend test files (NOT needed to deploy, CI only):
+     src/components/common/Badge.test.jsx
+     src/hooks/useDebounce.test.js
+     src/utils/formatCurrency.test.js
+
+===============================================================================
+ SECTION 4 — ROOT-LEVEL FILES
+===============================================================================
+  .gitignore                REQUIRED  keeps .env and node_modules out of git.
+                                      Deleting this WILL leak your secrets.
+  .gitattributes            keep      normalises line endings so the repo
+                                      behaves the same on Windows and on the
+                                      Linux build servers
+  README.md                 keep      the most-viewed file in your repo —
+                                      recruiters read this first
+  LICENSE                   keep      MIT
+  docker-compose.yml        optional  local one-command stack only
+  .github/workflows/ci.yml  optional  runs lint + tests + build on every push.
+                                      Not part of deployment, but a green CI
+                                      badge is worth having.
+  .prettierrc.json          dev only
+  .prettierignore           dev only
+
+===============================================================================
+ SECTION 5 — docs/  (NOT needed for deployment — needed for COLLEGE)
+===============================================================================
+ None of this ships. All of it matters for your submission and interviews.
+
+  MUST_DO.txt                        the 5 things still left for you to do
+  Interview.txt                      5 guaranteed questions + full answers
+  best free way to live this
+    project for free.txt             THE deployment guide — follow this one
+  run.txt                            how to run locally (Docker + manual)
+  WEBSITE_GUIDE.txt                  page-by-page walkthrough + demo flow
+  github.txt                         pushing to GitHub, branches, releases
+  resume.txt                         resume bullets + talking points
+  script_talk.txt                    viva / presentation script
+  prompt.txt                         the original project specification
+  README.txt                         docs folder index
+  ClientHub_Project_Report.docx      formal MCA project report
+  ClientHub_Presentation.pptx        presentation slides
+  ClientHub.postman_collection.json  importable API collection
+  screenshots/                       put your 6 screenshots here
+  _gen_docx.py                       regenerates the .docx report
+  _gen_pptx.py                       regenerates the .pptx slides
+  imp-file.txt                       this file
+
+ NOTE on the two .py files: they are generators, not documents. If you ever
+ need to change the report, edit _gen_docx.py and re-run it
+ (`python docs/_gen_docx.py`) rather than editing the .docx by hand — that way
+ the source and the output never drift apart.
+
+===============================================================================
+ SECTION 6 — NEVER COMMIT THESE
+===============================================================================
+ All of these are already in .gitignore. Just never force-add them.
+
+   .env                  real secrets — DATABASE_URL, JWT_SECRET, API keys
+   server/.env
+   client/.env
+   node_modules/         reinstalled from package-lock.json on every build
+   dist/                 build output, regenerated every deploy
+   DEMO_LOGINS.txt       kept outside the repository on purpose
+   *.log
+
+ If you ever accidentally commit a .env: rotate every key in it immediately.
+ Removing the file in a later commit does NOT remove it from git history.
+
+===============================================================================
+ SECTION 7 — ENVIRONMENT VARIABLES (not files, but deployment fails without them)
+===============================================================================
+
+ ON RENDER (backend) — required:
+   NODE_ENV                = production
+   PORT                    = 5000
+   DATABASE_URL            = <Neon connection string, ends with ?sslmode=require>
+   JWT_SECRET              = <32+ random characters — short = boot failure>
+   JWT_EXPIRES_IN          = 7d
+   CLIENT_URL              = <your exact Vercel URL, NO trailing slash>
+   CRON_TIMEZONE           = Asia/Kolkata
+
+ ON RENDER (backend) — optional, features degrade gracefully without them:
+   GROQ_API_KEY, GROQ_MODEL
+   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+   IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT
+   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+
+ ON VERCEL (frontend) — all required, and they are baked in AT BUILD TIME:
+   VITE_API_URL            = https://<your-api>.onrender.com/api      (WITH /api)
+   VITE_SOCKET_URL         = https://<your-api>.onrender.com          (NO /api)
+   VITE_RAZORPAY_KEY_ID    = rzp_test_xxxxxxxx
+
+ The /api difference between those first two is the single most common
+ deployment mistake. Changing any VITE_* value requires a REBUILD — editing it
+ in the dashboard alone does nothing.
+
+===============================================================================
+ SECTION 8 — DEPLOY SETTINGS CHEAT SHEET
+===============================================================================
+
+ RENDER (backend)
+   Root Directory   : server
+   Runtime          : Node          (not Docker)
+   Build Command    : npm install && npx prisma db push
+   Start Command    : node src/server.js
+   Instance Type    : Free
+   One-time, after the first successful deploy:
+       open the Shell tab and run  npm run seed
+
+ VERCEL (frontend)
+   Framework Preset : Vite
+   Root Directory   : client
+   Build Command    : npm run build     (auto-detected)
+   Output Directory : dist              (auto-detected)
+
+ NEON (database)
+   Create the project, copy the connection string into DATABASE_URL on Render.
+   Nothing else to configure — `prisma db push` creates every table.
+
+===============================================================================
+ SECTION 9 — ONE-LINE SUMMARY
+===============================================================================
+ Push everything. Point Render at server/ and Vercel at client/. Set the
+ environment variables in Section 7. Seed once. Done.
+
+ Full step-by-step walkthrough with troubleshooting:
+     docs/best free way to live this project for free.txt
+===============================================================================

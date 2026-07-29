@@ -1,0 +1,193 @@
+===============================================================================
+ ClientHub — GITHUB GUIDE
+ Pushing the code, keeping it clean, and making the repo look good to a recruiter
+===============================================================================
+A recruiter spends about 30 seconds on your repository. This file covers how to
+get the code up there safely, and how to make those 30 seconds count.
+
+  Repository: https://github.com/<YOUR-USERNAME>/clienthub
+
+===============================================================================
+ 1. FIRST-TIME SETUP
+===============================================================================
+Set your identity once (use the email tied to your GitHub account, otherwise
+your commits won't show on your contribution graph):
+
+    git config --global user.name  "Suryakanta Pradhan"
+    git config --global user.email "your-github-email@example.com"
+
+Check what git thinks it is:
+
+    git config user.name
+    git config user.email
+
+===============================================================================
+ 2. PUSHING THE PROJECT
+===============================================================================
+ 1. On github.com: New repository -> name it "clienthub" -> Public.
+    Do NOT tick "Add a README" or "Add a license" — the project already has both,
+    and ticking them creates a conflicting first commit.
+
+ 2. From the folder that contains docker-compose.yml:
+
+      git add -A
+      git commit -m "ClientHub: full-stack agency portal"
+      git branch -M main
+      git remote add origin https://github.com/<YOUR-USERNAME>/clienthub.git
+      git push -u origin main
+
+    If it says "remote origin already exists":
+      git remote set-url origin https://github.com/<YOUR-USERNAME>/clienthub.git
+
+ 3. After that, the everyday loop is just:
+
+      git add -A
+      git commit -m "Describe what changed"
+      git push
+
+===============================================================================
+ 3. SECRETS — READ THIS BEFORE YOU PUSH
+===============================================================================
+.gitignore already excludes .env, .env.local, node_modules/, dist/, logs/.
+Only the .env.example templates are committed, and they contain placeholders.
+
+VERIFY IT before your first push — this command should list ONLY .example files:
+
+    git ls-files | grep -i env
+
+If a real .env is listed, stop and remove it from tracking:
+
+    git rm --cached server/.env client/.env .env
+    git commit -m "Stop tracking env files"
+
+IF YOU EVER COMMITTED A REAL KEY: deleting it in a later commit is NOT enough,
+it stays in the history. Rotate the key at the provider (Groq, Razorpay,
+ImageKit) — that takes two minutes and is the only real fix.
+
+DEMO_LOGINS.txt is deliberately kept OUTSIDE the repository folder so it can
+never be committed by accident.
+
+===============================================================================
+ 4. MAKE THE REPO LOOK PROFESSIONAL
+===============================================================================
+These are quick wins on the repo's front page:
+
+ [ ] ABOUT SECTION (top right, click the gear):
+       Description: "AI-powered agency portal — clients, projects, Kanban,
+                     invoicing and payments. React + Node + Prisma + PostgreSQL."
+       Website:     your live Vercel URL
+       Topics:      react, nodejs, express, prisma, postgresql, tailwindcss,
+                    socket-io, jwt, fullstack, mca-project, saas
+
+ [ ] LIVE DEMO LINK at the top of README.md (line 17). An unclicked repo with a
+     working demo link still gets clicked.
+
+ [ ] SCREENSHOTS in docs/screenshots/ — the README already references
+     login.png, admin-dashboard.png, kanban.png, invoice.png. A repo with
+     screenshots reads as finished; one without reads as abandoned.
+
+ [ ] GREEN CI BADGE. The workflow already exists (.github/workflows/ci.yml).
+     After your first push, open the Actions tab and confirm it passes, then
+     optionally add the badge to README.md:
+       ![CI](https://github.com/<YOUR-USERNAME>/clienthub/actions/workflows/ci.yml/badge.svg)
+
+ [ ] PIN THE REPO on your GitHub profile (profile -> Customize your pins).
+
+===============================================================================
+ 5. COMMIT MESSAGES THAT READ WELL
+===============================================================================
+Your commit list is part of the portfolio. Aim for messages that say WHAT
+changed and WHY, in the imperative mood:
+
+    Good:  Add webhook signature verification for Razorpay payments
+    Good:  Fix dark mode on the project detail page
+    Good:  Split routes with React.lazy to cut the initial bundle by 69%
+    Bad:   update
+    Bad:   fix bug
+    Bad:   asdf
+
+Small, focused commits beat one giant "final version" commit — they show how you
+work, not just what you produced.
+
+===============================================================================
+ 6. BRANCHES (optional, but it looks good)
+===============================================================================
+Working on a branch and merging via a Pull Request demonstrates real workflow,
+and the CI runs on the PR before you merge:
+
+    git checkout -b feature/export-csv
+    ... make changes ...
+    git add -A
+    git commit -m "Add CSV export for the invoice list"
+    git push -u origin feature/export-csv
+
+Then on github.com: "Compare & pull request" -> wait for the CI check to go
+green -> Merge. Afterwards:
+
+    git checkout main
+    git pull
+    git branch -d feature/export-csv
+
+===============================================================================
+ 7. TAG A RELEASE (nice for a submission)
+===============================================================================
+Tagging gives you a stable, citable version to put in your report:
+
+    git tag -a v1.0.0 -m "ClientHub v1.0.0 — MCA final project submission"
+    git push origin v1.0.0
+
+Then on github.com -> Releases -> "Draft a new release" -> choose the tag ->
+paste the feature list from README.md -> Publish.
+
+===============================================================================
+ 8. COMMON PROBLEMS
+===============================================================================
+- "Authentication failed" on push
+    GitHub no longer accepts your account password. Use a Personal Access Token
+    as the password (github.com -> Settings -> Developer settings -> Personal
+    access tokens -> Fine-grained -> repo access), or install GitHub CLI:
+        gh auth login
+
+- "Updates were rejected because the remote contains work you do not have"
+    You created the repo WITH a README. Either start over with an empty repo, or:
+        git pull --rebase origin main
+        git push
+
+- "src refspec main does not match any"
+    You have not committed yet. Run: git add -A && git commit -m "Initial commit"
+
+- Line-ending warnings on Windows (LF/CRLF)
+    Harmless. .gitattributes already normalises this for the repo.
+
+- Pushed something huge by accident (node_modules, dist)
+    Remove it from tracking and commit:
+        git rm -r --cached node_modules
+        git commit -m "Stop tracking node_modules"
+    It stays in history but will no longer grow.
+
+- Wrong author on your commits (contributions not counted)
+    Fix the config (section 1), then for the most recent commit:
+        git commit --amend --reset-author --no-edit
+        git push --force-with-lease
+
+===============================================================================
+ 9. WHAT NOT TO COMMIT
+===============================================================================
+  .env files with real keys        node_modules/
+  dist/ and build/ output          coverage/
+  *.log files                      DEMO_LOGINS.txt
+  Editor folders (.vscode, .idea)  OS files (.DS_Store, Thumbs.db)
+
+All of the above are already in .gitignore. If in doubt, run `git status` and
+read the list before committing.
+
+===============================================================================
+ 10. PRE-PUSH CHECKLIST
+===============================================================================
+  [ ] cd server && npm run lint && npm test        (zero problems, 29 passing)
+  [ ] cd client && npm run lint && npm test        (zero problems, 15 passing)
+  [ ] cd client && npm run build                   (build succeeds)
+  [ ] git ls-files | grep -i env                   (only .example files listed)
+  [ ] git status                                   (no node_modules or dist)
+  [ ] README.md live-demo link updated
+===============================================================================

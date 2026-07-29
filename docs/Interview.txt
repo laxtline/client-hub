@@ -1,0 +1,307 @@
+===============================================================================
+ ClientHub — INTERVIEW PREPARATION
+ Every answer below is TRUE for this codebase. File paths are given so you can
+ open the code and confirm before you say it.
+===============================================================================
+
+ HOW TO USE THIS FILE
+   Read it once fully. Before an interview, re-read Section A only.
+   Never claim something you haven't read in the code. If you don't know,
+   say "I haven't handled that yet, here's how I would" — that answer scores
+   far better than a confident wrong one.
+
+===============================================================================
+ SECTION A — THE 5 QUESTIONS YOU WILL DEFINITELY BE ASKED
+===============================================================================
+
+-------------------------------------------------------------------------------
+ Q1. "Why do you verify the Razorpay webhook signature?"
+-------------------------------------------------------------------------------
+ CODE : server/src/controllers/paymentController.js  (handleWebhook)
+        server/src/utils/webhookVerify.js
+        server/src/app.js  (raw body mount, before express.json)
+
+ ANSWER
+   The webhook endpoint is a public URL. Without verification, anyone who
+   discovers it could POST a fake "payment.captured" event and mark any invoice
+   as paid without paying. So before trusting the payload I recompute an HMAC
+   SHA-256 of the RAW request body using the shared webhook secret, and compare
+   it to the x-razorpay-signature header. If it doesn't match, I reject with 400
+   and log it.
+
+ THE DETAIL THAT IMPRESSES
+   It has to be the raw body, not the parsed JSON. JSON.parse followed by
+   re-stringify can reorder keys or change whitespace, and then the hash won't
+   match. That's why in app.js the webhook route is mounted with
+   express.raw() BEFORE the global express.json() middleware — ordering matters.
+
+ FOLLOW-UP: "What if Razorpay sends the same event twice?"
+   They do retry. I handle it: markInvoicePaidFromWebhook checks whether the
+   payment row is already 'paid' and returns early if so, so a duplicate
+   delivery can't overwrite the original paidAt or re-notify the client. That's
+   idempotency. I also always return 200 on a processed event so the gateway
+   stops retrying.
+
+-------------------------------------------------------------------------------
+ Q2. "How do you stop one client from seeing another client's data?"
+-------------------------------------------------------------------------------
+ CODE : server/src/controllers/projectController.js  (clientIdForUser)
+        server/src/controllers/invoiceController.js
+        server/src/controllers/taskController.js  (clientOwnsProject / clientOwnsTask)
+        server/src/middleware/authMiddleware.js
+
+ ANSWER
+   Two layers. First, authentication: the JWT is verified on every protected
+   route and I re-fetch the user from the database rather than trusting the
+   token payload, so a deleted or downgraded account loses access immediately.
+
+   Second, tenant isolation in every controller. A client-role user is linked to
+   exactly one Client record via linkedUserId. Before any read I resolve that
+   client id and inject it into the Prisma where clause — so the query itself
+   can only ever return their rows. For single-record reads I compare
+   record.clientId against theirs and return 403 on mismatch.
+
+ THE DETAIL THAT IMPRESSES
+   I never rely on the frontend hiding things. The client dashboard shows less
+   because the API returns less. If you called the API directly with a client's
+   token you'd still only get their data.
+
+   Also: when a client's id can't be resolved I set the filter to a sentinel
+   ('__none__') rather than leaving it undefined. An undefined filter in Prisma
+   means "no filter" — which would return everything. That's a real class of bug
+   and I guarded it deliberately.
+
+ FOLLOW-UP: "Why not enforce it at the database level?"
+   Postgres row-level security would be the stronger answer at scale, and that's
+   what I'd move to. For this size, controller-level isolation with a single
+   shared helper per resource is easier to read and to test.
+
+-------------------------------------------------------------------------------
+ Q3. "What happens if the Groq AI API is down?"
+-------------------------------------------------------------------------------
+ CODE : server/src/services/aiSummaryService.js
+        server/src/config/groq.js
+
+ ANSWER
+   The feature degrades, it never breaks. generateProjectSummary wraps the API
+   call in try/catch. On any failure — no API key configured, network error,
+   rate limit, malformed response — it falls back to a deterministic template
+   built from the same aggregated stats: tasks done vs total, hours logged, days
+   to deadline. The summary is still written to the database and still shown,
+   just flagged riskFlag: 'unknown', and the UI shows a small "AI summary
+   unavailable" note.
+
+ THE DETAIL THAT IMPRESSES
+   I validate the model's output, not just the HTTP call. Even on a 200 the
+   model can return valid JSON that's missing the "summary" field. If I passed
+   that straight through, undefined would hit a non-null database column and
+   crash the request. So I explicitly check the field is a non-empty string, and
+   I whitelist riskFlag against the three allowed enum values before trusting it.
+
+ FOLLOW-UP: "Why a weekly cron and not on every change?"
+   Cost and noise. A weekly summary is what a client actually wants, and it
+   keeps token usage predictable. Admins can still trigger one on demand from
+   the project page.
+
+-------------------------------------------------------------------------------
+ Q4. "Your JWT is in localStorage — isn't that an XSS risk?"
+-------------------------------------------------------------------------------
+ CODE : client/src/context/AuthContext.jsx
+        client/src/api/axiosClient.js
+
+ ANSWER
+   Yes, and I know the tradeoff. If an attacker gets script execution on my
+   origin, they can read localStorage and steal the token. The safer production
+   pattern is a short-lived access token kept in memory plus a refresh token in
+   an httpOnly, Secure, SameSite cookie — httpOnly means JavaScript cannot read
+   it, so XSS can't exfiltrate it.
+
+   I chose localStorage for this project because the frontend and API are on
+   different origins (Vercel and Render), which makes cookie auth need
+   SameSite=None plus CSRF protection, and I judged that complexity not worth it
+   for a portfolio build. It's a deliberate tradeoff, not an oversight.
+
+ DO NOT get defensive here. Naming the correct solution and explaining why you
+ chose otherwise scores better than pretending there is no problem.
+
+ FOLLOW-UP: "How do you reduce the blast radius today?"
+   Tokens expire in 7 days. Helmet sets security headers. React escapes rendered
+   output by default and I never use dangerouslySetInnerHTML. The auth middleware
+   re-checks the user exists on every request, so a deleted account's stolen
+   token is dead immediately.
+
+-------------------------------------------------------------------------------
+ Q5. "Explain the Kanban drag-and-drop. What if the API call fails?"
+-------------------------------------------------------------------------------
+ CODE : client/src/components/kanban/KanbanBoard.jsx  (handleDragEnd)
+
+ ANSWER
+   It's an optimistic update. On drop I move the card in local state immediately
+   so the UI feels instant, then fire the PATCH to update the task status. If
+   that request throws, I revert the card to its previous column in the catch
+   block. So a failed save can never leave the screen showing a state the server
+   doesn't have.
+
+ THE DETAIL THAT IMPRESSES
+   The drag sensor has an activation distance of 6 pixels. Without it, a plain
+   click registered as a micro-drag and the task detail modal wouldn't open —
+   click and drag had to be disambiguated.
+
+ FOLLOW-UP: "Why optimistic instead of waiting for the server?"
+   Perceived latency. On a free-tier host the round trip can be hundreds of
+   milliseconds; a card that lags behind the cursor feels broken. The revert
+   path keeps it honest.
+
+===============================================================================
+ SECTION B — LIKELY FOLLOW-UPS
+===============================================================================
+
+ Q. "Walk me through what happens when a user logs in."
+    Login posts email + password. The controller looks the user up, bcrypt
+    compares the password against the stored hash, and on success signs a JWT
+    containing the user id and role. The frontend stores the token, sets it as a
+    Bearer header on all future requests via an axios interceptor, and redirects
+    based on role — clients to /client, everyone else to /admin. On refresh,
+    AuthContext calls /auth/me with the saved token to restore the session.
+
+ Q. "Why bcrypt and not SHA-256 for passwords?"
+    SHA-256 is designed to be fast, which is exactly wrong for passwords — it
+    makes brute force cheap. bcrypt is deliberately slow and salted per user, so
+    identical passwords produce different hashes and rainbow tables don't work.
+    I use 10 salt rounds.
+
+ Q. "How does the forgot-password flow work?"
+    A 32-byte random token goes in the emailed link, but only its SHA-256 hash is
+    stored, in the PasswordResetToken table. So a database leak yields no usable
+    reset links — same reasoning as hashing passwords. Tokens are single-use
+    (a usedAt timestamp), expire in one hour, requesting a new one invalidates
+    the old, and the redemption runs in a transaction so the password change and
+    the token burn either both happen or neither does. A daily cron purges spent
+    rows.
+
+    IF ASKED WHY NOT IN MEMORY: it started as an in-memory Map, which breaks the
+    moment the server restarts or you run more than one instance — the user's
+    link silently stops working. Moving it to the database fixed both.
+
+ Q. "How is project progress calculated?"
+    calculateProgress in server/src/utils/ — done tasks divided by total tasks,
+    rounded, 0 when there are no tasks. It's a pure function kept out of the
+    controllers specifically so it's unit-testable, and it is tested.
+
+ Q. "Why Prisma over raw SQL or Mongoose?"
+    Type-safe generated client, readable relational queries, and migrations from
+    a single schema file. The data here is genuinely relational — clients own
+    projects, projects own tasks and invoices — so Postgres over MongoDB was the
+    right call. Mongoose would have meant modelling relations by hand.
+
+ Q. "What are the indexes for?"
+    Postgres doesn't automatically index foreign key columns. Every FK I query by
+    is indexed — projectId on tasks, clientId on projects, userId on
+    notifications — plus gatewayTransactionId on payments, because every webhook
+    delivery looks a payment up by it.
+
+ Q. "How do real-time notifications work?"
+    Socket.io shares the HTTP server port. The handshake carries the same JWT,
+    verified in an io.use middleware. Each socket joins a room named after the
+    user id, so notifyUser can emit to exactly one person across all their open
+    devices. If the socket fails to connect the bell still works — it falls back
+    to fetching over REST.
+
+ Q. "What did you do for performance?"
+    Four things. Route-level code splitting with React.lazy — Recharts alone is
+    ~400 kB and only the dashboards need it, so it's a separate chunk instead of
+    something every visitor downloads before the login form paints. socket.io-client
+    is dynamically imported for the same reason. gzip compression on all API
+    responses. Debounced search input, so typing fires one request instead of one
+    per keystroke. Database aggregation for the top-clients query rather than
+    pulling all invoices into Node.
+
+ Q. "How would you scale this to 10,000 users?"
+    Connection pooling (PgBouncer) in front of Postgres. Redis for the Socket.io
+    adapter so multiple instances can broadcast to the same rooms, and for
+    caching the analytics aggregates, which are the expensive queries. Move the
+    weekly AI job to a proper queue like BullMQ so it isn't tied to one
+    instance's cron. Then horizontal scaling behind a load balancer — the API is
+    already stateless, which is exactly why moving reset tokens out of memory
+    mattered.
+
+ Q. "What was the hardest bug you fixed?"
+    Pick a real one — this is a good honest answer:
+    Notification deep links pointed at routes that didn't exist. Task
+    notifications linked to /tasks and payment confirmations to /invoices/:id,
+    but neither route was defined, so clicking a notification dropped the user on
+    the 404 page. Tests passed and the build succeeded because nothing type-checks
+    a string against the router. I found it by listing every link the backend
+    emits and diffing that against the route table.
+
+ Q. "What would you do differently?"
+    Write integration tests against a real test database, not just unit tests
+    with mocked Prisma — that class of bug above would have been caught. And I'd
+    start with the httpOnly refresh-token pattern instead of localStorage.
+
+===============================================================================
+ SECTION C — THE 60-SECOND PROJECT PITCH
+===============================================================================
+ Use this when they say "tell me about your project".
+
+   "ClientHub is a client management portal for small design and development
+    agencies. It has three roles — the agency admin, team members, and the
+    clients themselves, who each get their own login.
+
+    Admins manage clients, projects, and invoices. Team members work a Kanban
+    board with drag-and-drop, comments and time logging. Clients log in to a
+    portal showing live progress on their projects, their invoices, and they can
+    pay online through Razorpay.
+
+    The feature I'm most proud of is the AI progress summary. A weekly cron job
+    aggregates each project's activity, sends it to Groq's Llama model, and gets
+    back a client-friendly summary plus a risk flag — on track, at risk, or
+    delayed — which is emailed to the client automatically. It falls back to a
+    deterministic template if the AI is unavailable, so the feature never breaks.
+
+    Stack is React with Vite and Tailwind on the frontend, Express with Prisma
+    and PostgreSQL on the backend, and Socket.io for real-time notifications.
+    It's containerised with Docker and has GitHub Actions CI running lint, tests
+    and a build on every push."
+
+ THEN STOP TALKING. Let them ask.
+
+===============================================================================
+ SECTION D — RULES FOR THE ROOM
+===============================================================================
+  1. Have the live URL open in a tab before the call starts.
+  2. If Render was asleep, hit /api/health a minute early so it's warm.
+  3. Lead with the AI summary and the payment webhook. Those two are what make
+     this project different from every other CRUD submission.
+  4. Never say "I just followed a tutorial."
+  5. When you don't know: "I haven't implemented that — here's how I'd approach
+     it." Then actually reason out loud. That is a passing answer.
+  6. Know your own numbers: 9 models, 3 roles, 40+ endpoints, 44 tests.
+  7. If they find a bug live, don't panic. "Good catch — that's a real bug.
+     I'd fix it by..." Composure is being graded, not perfection.
+
+===============================================================================
+ SECTION E — RESUME BULLET POINTS
+===============================================================================
+ Use 3-4 of these. Keep the numbers; they are all true.
+
+  - Built a full-stack multi-tenant client portal (React, Node/Express, Prisma,
+    PostgreSQL) with role-based access for 3 user types and strict per-tenant
+    data isolation enforced at the API layer.
+
+  - Integrated Razorpay payments with HMAC-SHA256 webhook signature verification
+    and idempotent handling of duplicate gateway retries.
+
+  - Implemented AI-generated weekly project summaries (Groq / Llama 3.3) with
+    output validation and a deterministic fallback, so the feature degrades
+    gracefully instead of failing.
+
+  - Cut initial bundle size by route-level code splitting and dynamic imports,
+    deferring a ~400 kB charting library and the WebSocket client until needed.
+
+  - Set up GitHub Actions CI running lint, 44 unit tests and a production build
+    on every push; containerised with Docker Compose.
+
+===============================================================================
+ Good luck. The project is strong — now go show it.
+===============================================================================
