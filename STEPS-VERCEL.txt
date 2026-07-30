@@ -3,9 +3,9 @@
 ============================================================
 
 Repo:      https://github.com/laxtline/client-hub
-Vercel:    https://vercel.com/laxtline-8090s-projects
-Frontend:  https://clienthub-laxtline.vercel.app   (project "clienthub",  root dir: client)
-API:       project "clienthub-api"                 (root dir: server)
+Vercel:    https://vercel.com/laxtline   (account: mymicrosoftacsurya-8635)
+Frontend:  https://clienthub-surya.vercel.app       (project "clienthub",     root: client)
+API:       https://clienthub-api-surya.vercel.app   (project "clienthub-api", root: server)
 
 ⚠️ VERCEL KI DO LIMITATION (code ki galti nahi, platform ki hai):
    ❌ Socket.io live notifications — page refresh pe dikhenge
@@ -16,83 +16,63 @@ API:       project "clienthub-api"                 (root dir: server)
 ------------------------------------------------------------
   ✅ JO HO CHUKA HAI
 ------------------------------------------------------------
-1. Poora code GitHub pe push ho gaya (main branch, 168 files).
-2. server/api/index.js — Express app ko Vercel function banata hai.
+1. Poora code GitHub pe push (main branch).
+2. server/api/index.js — Express app Vercel function ban gaya.
 3. server/vercel.json + client/vercel.json — routing/SPA rewrites.
-4. CORS ab comma-separated CLIENT_URL list accept karta hai.
-5. Vercel pe 2 project ban gaye: clienthub + clienthub-api.
-6. Frontend production pe deploy ho gaya, alias set:
-   https://clienthub-laxtline.vercel.app
-7. GitHub "About" me description + website link + topics set.
+4. CORS comma-separated CLIENT_URL list accept karta hai.
+5. Winston file transport Vercel pe skip (warna function crash hota tha).
+6. Vercel pe 2 project: clienthub (root=client, framework=vite) aur
+   clienthub-api (root=server).
+7. ✅ DONO project GitHub repo se CONNECTED — push karo, auto deploy hoga.
+   (Verify ho chuka: last push se dono apne aap redeploy hue.)
+8. Stable URLs assign: clienthub-surya + clienthub-api-surya.
+9. Env vars set — API: NODE_ENV, CLIENT_URL, GROQ_MODEL.
+   Frontend: VITE_API_URL, VITE_SOCKET_URL.
+10. GitHub "About": description + website link + 10 topics.
 
 ------------------------------------------------------------
-  ⬜ JO BAAKI HAI (in steps ke liye tumhari permission chahiye)
+  ⬜ SIRF 2 CHEEZ BAAKI (tumhari permission chahiye)
 ------------------------------------------------------------
 
-STEP A — DATABASE (Neon Postgres)
-   Vercel dashboard → Storage → Create Database → Neon → region
-   Singapore (ap-southeast-1) → connect to BOTH projects.
-   Phir local se schema + demo data ek baar daalo:
+STEP A — DATABASE (ye bina site kaam nahi karegi)
+   /api/health abhi "database":"unreachable" bol raha hai.
 
+   Vercel dashboard → Storage → Create Database → Neon →
+   region Singapore (ap-southeast-1) → connect BOTH projects.
+   Ya CLI se:  vercel integration add neon
+
+   Phir schema + demo data ek baar daalo:
      cd C:\Users\Admin\Desktop\CLIENTHUB\CLIENTHUB\clienthub\server
      DATABASE_URL="<NEON_URL>" npx prisma db push
      DATABASE_URL="<NEON_URL>" npm run seed
 
-STEP B — API KE ENVIRONMENT VARIABLES
-   Values server/.env me already maujood hain (copy kar lo).
-   Vercel → clienthub-api → Settings → Environment Variables
-   (Production), ya CLI se:
-
+STEP B — BAAKI SECRETS (values server/.env me hain)
      cd server
-     vercel env add DATABASE_URL production
-     vercel env add JWT_SECRET production
-     vercel env add NODE_ENV production           # value: production
-     vercel env add CLIENT_URL production         # value: https://clienthub-laxtline.vercel.app
+     vercel env add DATABASE_URL production          # Neon se aayega
+     vercel env add JWT_SECRET production            # 32+ random chars!
      vercel env add GROQ_API_KEY production
-     vercel env add GROQ_MODEL production         # value: llama-3.3-70b-versatile
      vercel env add IMAGEKIT_PUBLIC_KEY production
      vercel env add IMAGEKIT_PRIVATE_KEY production
      vercel env add IMAGEKIT_URL_ENDPOINT production
 
-   Note: JWT_SECRET production me 32+ random chars hona chahiye,
-   warna server boot pe fail karega (validateEnv.js).
+   Note: JWT_SECRET 32+ chars hona chahiye, warna validateEnv.js
+   production me boot fail kar dega.
 
-STEP C — API DEPLOY + ALIAS
-     cd server
-     vercel deploy --prod --yes
-     vercel alias set <deployment-url> clienthub-api-laxtline.vercel.app
-
-   Test:  https://clienthub-api-laxtline.vercel.app/api/health
+   Iske baad redeploy:  git commit --allow-empty -m "redeploy" && git push
+   Test:  https://clienthub-api-surya.vercel.app/api/health
    Aana chahiye: {"status":"ok","database":"ok",...}
 
-STEP D — FRONTEND KO API SE JODO
-     cd client
-     vercel env add VITE_API_URL production      # https://clienthub-api-laxtline.vercel.app/api
-     vercel env add VITE_SOCKET_URL production   # https://clienthub-api-laxtline.vercel.app
-     vercel deploy --prod --yes
-     vercel alias set <deployment-url> clienthub-laxtline.vercel.app
+------------------------------------------------------------
+  FUTURE ME CHANGES KAISE KARO
+------------------------------------------------------------
+   Bas GitHub pe push karo — bas itna hi:
 
-STEP E — SSO PROTECTION HATAO (site public karne ke liye)
-   Abhi frontend URL Vercel login ke peeche hai (302 → sso-api).
-   Vercel → clienthub → Settings → Deployment Protection →
-   Vercel Authentication = Disabled. Ya CLI se:
+     git add -A
+     git commit -m "kuch change"
+     git push
 
-     vercel project protection disable clienthub --sso
-
-   (Yahi clienthub-api ke liye bhi karo, warna frontend API ko
-   call nahi kar payega.)
-
-STEP F — AUTO-DEPLOY ON GIT PUSH (tumhari main requirement)
-   CLI se connect fail hua kyunki Vercel ka GitHub App tumhare
-   account pe install nahi hai. Ek baar browser se karo:
-
-   1. https://vercel.com/laxtline-8090s-projects/clienthub/settings/git
-   2. "Connect Git Repository" → GitHub → Install Vercel app →
-      repo chuno: laxtline/client-hub
-   3. Root Directory = client   (Settings → Build & Deployment)
-   4. Wahi clienthub-api project me repeat karo, Root Directory = server
-
-   Iske baad: GitHub pe push → dono project apne aap redeploy.
+   Vercel dono project apne aap rebuild + redeploy kar dega.
+   Manual deploy ki zaroorat nahi.
 
 ------------------------------------------------------------
   DEMO LOGINS (seed ke baad)
@@ -104,8 +84,8 @@ STEP F — AUTO-DEPLOY ON GIT PUSH (tumhari main requirement)
 ------------------------------------------------------------
   TROUBLESHOOTING
 ------------------------------------------------------------
-- /api/health pe "database":"unreachable" → DATABASE_URL galat.
+- /api/health pe "database":"unreachable" → DATABASE_URL galat/missing.
 - Browser console me CORS error → clienthub-api ka CLIENT_URL
   frontend ke asli URL se match nahi kar raha.
 - 401 on login → password Demo@1234 (capital D), ya seed nahi chala.
-- Logs: Vercel → project → Deployments → deployment → Functions tab.
+- Logs:  vercel logs https://clienthub-api-surya.vercel.app
