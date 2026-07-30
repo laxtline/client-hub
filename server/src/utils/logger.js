@@ -15,8 +15,11 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-// In production, also persist errors to a file for later inspection.
-if (process.env.NODE_ENV === 'production') {
+// In production, also persist errors to a file for later inspection. Skip this
+// on serverless platforms (Vercel), where the filesystem is read-only apart
+// from /tmp — creating logs/ there throws ENOENT and kills the function on
+// import. Their own log drain captures the console transport anyway.
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   logger.add(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
 }
 
