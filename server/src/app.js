@@ -40,8 +40,22 @@ app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 // Never fall back to '*': with credentials enabled that would open the API to
 // every origin if CLIENT_URL is unset. Default to the local dev frontend.
+// CLIENT_URL accepts a comma-separated list so the production frontend and a
+// preview/staging origin can both be allowed without redeploying the API.
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 app.use(
-  cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true })
+  cors({
+    origin(origin, callback) {
+      // No Origin header = same-origin or a non-browser client (curl, health
+      // checks); nothing to enforce, so let it through.
+      if (!origin) return callback(null, true);
+      callback(null, allowedOrigins.includes(origin.replace(/\/$/, '')));
+    },
+    credentials: true,
+  })
 );
 // gzip every JSON response. Analytics and project lists are the biggest
 // payloads in the app and compress to roughly a fifth of their size, which is

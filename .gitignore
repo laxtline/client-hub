@@ -21,6 +21,9 @@ npm-debug.log*
 # Prisma
 server/src/prisma/dev.db
 
+# Vercel CLI link/credential cache (per-machine, never commit)
+.vercel/
+
 # Editor / OS
 .vscode/
 .idea/
