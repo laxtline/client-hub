@@ -81,7 +81,7 @@ npm run lint
 npm run build
 ```
 
-The integration runner only accepts this project's `127.0.0.1:5433/clienthub` database and also needs the client dependencies installed. It creates temporary fixtures and removes them afterward. The latest local review passed 62 backend tests, 29 frontend tests and 17 database/HTTP/socket integration scenarios. Lint and the production build passed too. Provider delivery and a complete browser walkthrough were not part of those checks.
+The integration runner only accepts this project's `127.0.0.1:5433/clienthub` database and also needs the client dependencies installed. It creates temporary fixtures and removes them afterward. The latest local review passed 66 backend tests, 29 frontend tests and 17 database/HTTP/socket integration scenarios. Lint and the production build passed too. Provider delivery and a complete browser walkthrough were not part of those checks.
 
 ## What still needs work
 
