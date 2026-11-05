@@ -212,6 +212,6 @@ Use the existing cloud database configuration. Do not run schema changes or a fo
 
 Suryakanta Pradhan — MCA, full-stack development
 
-[LinkedIn](https://www.linkedin.com/in/suryakanta-pradhan-b4179b27a/) · [Email](mailto:suryakant321pradhan@gmail.com)
+[LinkedIn](https://www.linkedin.com/in/suryakanta-pradhan-b4179b27a/) · [Email](suryakant321pradhan@gmail.com)
 
 MIT licensed. This is a learning and portfolio project.
