@@ -1,0 +1,79 @@
+# Dependencies
+node_modules/
+
+# Environment secrets (never commit real .env)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Test coverage
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Prisma
+server/src/prisma/dev.db
+server/src/prisma/migrations/.migration_lock.toml
+
+# Vercel CLI link/credential cache (per-machine, never commit)
+.vercel/
+
+# Render / deployment
+.render/
+
+# Docker
+docker-compose.override.yml
+
+# Demo credentials (never commit real credentials)
+DEMO_LOGINS.txt
+*.pem
+*.key
+*.crt
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS
+Desktop.ini
+ehthumbs.db
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Turbo / build cache
+.turbo/
+
+# Misc
+*.tgz
+.cache/
+.local-postgres/
+
+# Personal / local config (not needed for project)
+.claude/
+.qodo/
+docs/
+.agents/
+.mcp.json
+LOCAL_QA_REPORT.md
+PROJECT_REVIEW.md
+client/nginx.conf
+scripts/start-local-db.ps1

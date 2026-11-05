@@ -1,0 +1,16 @@
+# Normalize line endings: store text as LF in the repo, check out native locally.
+* text=auto eol=lf
+
+# Treat these as binary (never normalize / diff).
+*.docx binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
+# Count the actual frontend and schema source in GitHub's language summary.
+*.html linguist-detectable=true
+*.css linguist-detectable=true
+*.prisma linguist-detectable=true

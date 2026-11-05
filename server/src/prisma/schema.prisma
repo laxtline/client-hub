@@ -1,0 +1,242 @@
+// Prisma schema - ClientHub database
+// Local development uses npm run prisma:push. Review migrations before production.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  team_member
+  client
+}
+
+enum ProjectStatus {
+  not_started
+  in_progress
+  completed
+  on_hold
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  done
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum InvoiceStatus {
+  pending
+  paid
+  overdue
+}
+
+enum PaymentStatus {
+  created
+  paid
+  failed
+}
+
+enum RiskFlag {
+  on_track
+  at_risk
+  delayed
+  unknown
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(team_member)
+  createdAt    DateTime @default(now())
+
+  clientProfile  Client?
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  comments       TaskComment[]
+  notifications  Notification[]
+  taskActivities TaskActivity[]
+  resetTokens    PasswordResetToken[]
+  refreshTokens  RefreshToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Client {
+  id           String    @id @default(cuid())
+  name         String
+  companyName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+  logoUrl      String?
+  archived     Boolean   @default(false)
+
+  linkedUserId String?   @unique
+  linkedUser   User?     @relation(fields: [linkedUserId], references: [id])
+
+  projects     Project[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  budget      Float         @default(0)
+  startDate   DateTime?
+  deadline    DateTime?
+  status      ProjectStatus @default(not_started)
+  archived    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+
+  tasks       Task[]
+  invoices    Invoice[]
+  aiSummaries AISummary[]
+
+  @@index([clientId])
+}
+
+model Task {
+  id               String        @id @default(cuid())
+  projectId        String
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  assignedToUserId String?
+  assignedTo       User?         @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  status           TaskStatus    @default(todo)
+  priority         Priority      @default(medium)
+  dueDate          DateTime?
+  hoursLogged      Float         @default(0)
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+
+  comments         TaskComment[]
+  activities       TaskActivity[]
+
+  @@index([projectId])
+  @@index([assignedToUserId])
+}
+
+model TaskActivity {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lineItems   Json
+  taxRate     Float         @default(0)
+  totalAmount Float         @default(0)
+  status      InvoiceStatus @default(pending)
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+
+  payments    Payment[]
+
+  @@index([projectId])
+  @@index([clientId])
+}
+
+model Payment {
+  id                   String        @id @default(cuid())
+  invoiceId            String
+  invoice              Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount               Float
+  gatewayTransactionId String?
+  status               PaymentStatus @default(created)
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@index([gatewayTransactionId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AISummary {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  summaryText String
+  riskFlag    RiskFlag @default(unknown)
+  generatedAt DateTime @default(now())
+
+  @@index([projectId])
+}
