@@ -1,0 +1,1012 @@
+ClientHub file notes
+
+I kept this longer guide because it helps me find the code when I come back to it. README.md is the shorter starting point. These notes cover the actual files, including local configuration names, but don't copy secret values.
+
+The code is split into client, server and python-services. React pages call an API wrapper, Express checks the request, and Prisma reads/writes PostgreSQL. Python is only the optional summary service. Nothing here needs Next.js.
+
+I added the current account files to the tree below so I can find them while tracing a login. I don't count the contents of node_modules, __pycache__, .git or virtual environments. node_modules holds installed packages; Python caches are generated; a virtual environment holds Python packages. Any protected docs directory is left alone. CLIENTHUB-docs is a separate sibling folder.
+
+CLIENTHUB/
+|-- .qodo/
+|   |-- agents
+|   `-- workflows
+|-- .vscode/
+|   `-- settings.json
+|-- client/
+|   |-- node_modules/
+|   |   `-- [excluded generated dependency contents]
+|   |-- src/
+|   |   |-- api/
+|   |   |   |-- accountApi.js
+|   |   |   |-- aiApi.js
+|   |   |   |-- analyticsApi.js
+|   |   |   |-- authApi.js
+|   |   |   |-- axiosClient.js
+|   |   |   |-- clientApi.js
+|   |   |   |-- invoiceApi.js
+|   |   |   |-- notificationApi.js
+|   |   |   |-- paymentApi.js
+|   |   |   |-- projectApi.js
+|   |   |   `-- taskApi.js
+|   |   |-- components/
+|   |   |   |-- common/
+|   |   |   |   |-- TemporaryLogin.jsx
+|   |   |   |   |-- Badge.jsx
+|   |   |   |   |-- Button.jsx
+|   |   |   |   |-- EmptyState.jsx
+|   |   |   |   |-- ErrorBoundary.jsx
+|   |   |   |   |-- InputField.jsx
+|   |   |   |   |-- Loader.jsx
+|   |   |   |   |-- Logo.jsx
+|   |   |   |   |-- Modal.jsx
+|   |   |   |   |-- Pagination.jsx
+|   |   |   |   `-- Toaster.jsx
+|   |   |   |-- dashboard/
+|   |   |   |   |-- ProgressChart.jsx
+|   |   |   |   |-- RevenueChart.jsx
+|   |   |   |   `-- StatsCard.jsx
+|   |   |   |-- invoices/
+|   |   |   |   |-- InvoiceForm.jsx
+|   |   |   |   |-- InvoiceTable.jsx
+|   |   |   |   `-- PaymentModal.jsx
+|   |   |   |-- kanban/
+|   |   |   |   |-- KanbanBoard.jsx
+|   |   |   |   |-- TaskCard.jsx
+|   |   |   |   |-- TaskColumn.jsx
+|   |   |   |   `-- TaskModal.jsx
+|   |   |   |-- layout/
+|   |   |   |   |-- DashboardLayout.jsx
+|   |   |   |   |-- Navbar.jsx
+|   |   |   |   |-- ProtectedRoute.jsx
+|   |   |   |   `-- Sidebar.jsx
+|   |   |   `-- notifications/
+|   |   |       |-- NotificationBell.jsx
+|   |   |       `-- NotificationList.jsx
+|   |   |-- context/
+|   |   |   |-- AuthContext.jsx
+|   |   |   |-- contexts.js
+|   |   |   |-- SocketContext.jsx
+|   |   |   |-- ThemeContext.jsx
+|   |   |   `-- ToastContext.jsx
+|   |   |-- hooks/
+|   |   |   |-- useAuth.js
+|   |   |   |-- useDebounce.js
+|   |   |   |-- useFetch.js
+|   |   |   |-- useInvoiceUpdates.js
+|   |   |   |-- useSocket.js
+|   |   |   |-- useTheme.js
+|   |   |   `-- useToast.js
+|   |   |-- pages/
+|   |   |   |-- AccountsPage.jsx
+|   |   |   |-- ChangePassword.jsx
+|   |   |   |-- DemoPage.jsx
+|   |   |   |-- AdminDashboard.jsx
+|   |   |   |-- ClientDashboard.jsx
+|   |   |   |-- ClientsPage.jsx
+|   |   |   |-- ForgotPassword.jsx
+|   |   |   |-- InvoicesPage.jsx
+|   |   |   |-- Login.jsx
+|   |   |   |-- MyTasksPage.jsx
+|   |   |   |-- NotFound.jsx
+|   |   |   |-- ProjectDetailPage.jsx
+|   |   |   |-- ProjectsPage.jsx
+|   |   |   `-- Signup.jsx
+|   |   |-- routes/
+|   |   |   `-- AppRoutes.jsx
+|   |   |-- utils/
+|   |   |   `-- helpers.js
+|   |   |-- App.jsx
+|   |   |-- index.css
+|   |   `-- main.jsx
+|   |-- tests/
+|   |   |-- accounts.spec.ts
+|   |   `-- auth.spec.ts
+|   |-- .env
+|   |-- .env.example
+|   |-- .env.local
+|   |-- .env.production
+|   |-- Dockerfile
+|   |-- eslint.config.js
+|   |-- index.html
+|   |-- nginx.conf
+|   |-- package-lock.json
+|   |-- package.json
+|   |-- playwright.config.ts
+|   |-- postcss.config.js
+|   |-- tailwind.config.js
+|   |-- tsconfig.json
+|   |-- tsconfig.node.json
+|   |-- vercel.json
+|   `-- vite.config.ts
+|-- python-services/
+|   `-- ai-service/
+|       |-- tests/
+|       |   `-- test_main.py
+|       |-- .env
+|       |-- .env.example
+|       |-- Dockerfile
+|       |-- main.py
+|       |-- README.md
+|       |-- requirements.txt
+|       `-- ruff.toml
+|-- server/
+|   |-- api/
+|   |   `-- index.js
+|   |-- node_modules/
+|   |   `-- [excluded generated dependency contents]
+|   |-- scripts/
+|   |   |-- setup-accounts.js
+|   |   |-- verify-accounts.js
+|   |   `-- verify-local.js
+|   |-- src/
+|   |   |-- config/
+|   |   |   |-- db.js
+|   |   |   |-- imagekit.js
+|   |   |   |-- multer.js
+|   |   |   |-- razorpay.js
+|   |   |   `-- validateEnv.js
+|   |   |-- controllers/
+|   |   |   |-- accountController.js
+|   |   |   |-- aiController.js
+|   |   |   |-- analyticsController.js
+|   |   |   |-- authController.js
+|   |   |   |-- clientController.js
+|   |   |   |-- invoiceController.js
+|   |   |   |-- notificationController.js
+|   |   |   |-- paymentController.js
+|   |   |   |-- projectController.js
+|   |   |   `-- taskController.js
+|   |   |-- jobs/
+|   |   |   `-- cronJobs.js
+|   |   |-- middleware/
+|   |   |   |-- authMiddleware.js
+|   |   |   |-- errorHandler.js
+|   |   |   |-- rateLimiter.js
+|   |   |   |-- roleMiddleware.js
+|   |   |   |-- validateQuery.js
+|   |   |   `-- validateRequest.js
+|   |   |-- prisma/
+|   |   |   |-- dev.db
+|   |   |   |-- schema.prisma
+|   |   |   `-- seed.js
+|   |   |-- routes/
+|   |   |   |-- accountRoutes.js
+|   |   |   |-- aiRoutes.js
+|   |   |   |-- analyticsRoutes.js
+|   |   |   |-- authRoutes.js
+|   |   |   |-- clientRoutes.js
+|   |   |   |-- invoiceRoutes.js
+|   |   |   |-- notificationRoutes.js
+|   |   |   |-- paymentRoutes.js
+|   |   |   |-- projectRoutes.js
+|   |   |   `-- taskRoutes.js
+|   |   |-- services/
+|   |   |   |-- aiSummaryService.js
+|   |   |   |-- emailService.js
+|   |   |   |-- invoiceService.js
+|   |   |   |-- notificationService.js
+|   |   |   `-- paymentService.js
+|   |   |-- sockets/
+|   |   |   `-- socketHandler.js
+|   |   |-- utils/
+|   |   |   |-- access.js
+|   |   |   |-- accounts.js
+|   |   |   |-- demoAccounts.js
+|   |   |   |-- calculateProgress.js
+|   |   |   |-- generatePDF.js
+|   |   |   |-- logger.js
+|   |   |   |-- sanitize.js
+|   |   |   `-- webhookVerify.js
+|   |   |-- app.js
+|   |   `-- server.js
+|   |-- .env
+|   |-- .env.example
+|   |-- .env.local
+|   |-- .env.production
+|   |-- Dockerfile
+|   |-- eslint.config.js
+|   |-- package-lock.json
+|   |-- package.json
+|   `-- vercel.json
+|-- .env
+|-- .gitattributes
+|-- .gitignore
+|-- docker-compose.yml
+|-- LICENSE
+|-- PROJECT_GUIDE.txt
+`-- README.md
+
+Folders
+
+.qodo - Local tool folders; the app does not read them.
+.qodo/agents - Local tool folders; the app does not read them.
+.qodo/workflows - Local tool folders; the app does not read them.
+.vscode - Stores workstation editor preferences. It is not part of the deployed application.
+client - the independently installed React and Vite frontend, its configuration and browser tests.
+client/src - browser application source. main.jsx mounts the application and App.jsx assembles its providers.
+client/src/api - Keeps HTTP calls separate from screens. All feature clients share axiosClient and its authentication handling.
+client/src/components - Groups reusable UI by feature so pages can assemble small components instead of duplicating markup.
+client/src/components/common - shared buttons, inputs, dialogs, feedback, branding, pagination and error UI.
+client/src/components/dashboard - reusable summary cards and charts for project and revenue information.
+client/src/components/invoices - invoice creation, invoice lists, PDF downloading and the labelled demo payment confirmation.
+client/src/components/kanban - the task board, status columns, draggable task cards and task detail/comment dialog.
+client/src/components/layout - the authenticated page shell, navigation and frontend route guards.
+client/src/components/notifications - the notification bell, notification list and read-state interactions.
+client/src/context - Keeps application-wide authentication, socket, theme and toast state through React Context.
+client/src/hooks - reusable access to contexts, request state, debounced input and invoice refresh events.
+client/src/pages - complete screens selected by the browser URL, including authentication, dashboards and business records.
+client/src/routes - Maps browser URLs to screens and role guards. These are frontend routes, not Express API routes.
+client/src/utils - shared display, date, role and escaping helpers used by several screens.
+client/tests - Playwright browser tests. These exercise the application through Chromium rather than mocking React.
+python-services - Groups services implemented in Python separately from the JavaScript frontend and main API.
+python-services/ai-service - the optional FastAPI summary service, its dependencies, container definition and local configuration.
+python-services/ai-service/tests - two pytest tests for health and template fallback behavior.
+server - the independently installed Node and Express API, Prisma configuration and deployment entry points.
+server/api - the Vercel function entry point. This path imports Express without starting the long-lived socket/cron server.
+server/scripts - account setup and guarded integration/account checks. These run from a terminal, not as public HTTP routes.
+server/src - the main API source, long-lived server entry point and all feature layers.
+server/src/config - Creates shared clients and configuration for the database, uploads, payments and environment checks.
+server/src/controllers - Handles HTTP requests, checks resource ownership, invokes services or queries Prisma and shapes responses.
+server/src/jobs - Defines in-process scheduled jobs for summaries, overdue invoices and token cleanup.
+server/src/middleware - authentication, role checks, validation, request limits and centralized error handling.
+server/src/prisma - the PostgreSQL schema, seed program and an old SQLite file. The active schema does not use that SQLite file.
+server/src/routes - Maps API paths and HTTP verbs to validation, authorization and controller functions.
+server/src/services - reusable invoice, payment, summary, email and notification operations.
+server/src/sockets - Attaches Socket.io to the long-lived HTTP server and emits events to authenticated user rooms.
+server/src/utils - calculations, PDF generation, sanitization, logging and webhook signature verification.
+
+The files
+
+.env
+Root settings used by Compose interpolation. This is separate from the API dotenv file. Setting names: GROQ_API_KEY, GROQ_MODEL, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT, JWT_SECRET, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SMTP_FROM, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER, VITE_RAZORPAY_KEY_ID.
+
+.gitattributes
+Git line endings and binary/language hints. It is not repository history.
+
+.gitignore
+Keeps secrets, dependencies, builds and local data out of a new commit.
+
+.vscode/settings.json
+One local VS Code Python terminal preference. It is not runtime setup for other machines.
+
+LICENSE
+The MIT license for the project.
+
+PROJECT_GUIDE.txt
+These are my longer file notes and setup steps. The sibling docs folder has its own copy; this edit updates only the guide in the project root.
+
+README.md
+The shorter introduction, local commands and demo accounts. Start here before the longer notes.
+
+client/.env
+Vite development/build settings. VITE values go into the browser bundle; private keys must not go here. Setting names: VITE_API_URL, VITE_RAZORPAY_KEY_ID, VITE_SOCKET_URL.
+
+client/.env.example
+Example setting names to copy and fill in privately. The app does not load this example directly. Setting names: VITE_API_URL, VITE_SOCKET_URL.
+
+client/.env.local
+Vite development/build settings. VITE values go into the browser bundle; private keys must not go here. Setting names: VERCEL_OIDC_TOKEN.
+
+client/.env.production
+Vite development/build settings. VITE values go into the browser bundle; private keys must not go here. Setting names: VITE_API_URL, VITE_RAZORPAY_KEY_ID, VITE_SOCKET_URL.
+
+client/Dockerfile
+The Vite development image. It still needs a reachable bind address for container use.
+
+client/eslint.config.js
+Lint preferences left in the repo. The required tools and npm lint commands are not fully wired up.
+
+client/index.html
+The HTML shell and root element. It loads src/main.jsx.
+
+client/nginx.conf
+Optional static serving/proxy config. The current Dockerfile/Vercel setup does not use it, and Git ignores it.
+
+client/package-lock.json
+Exact npm dependency versions. I keep this so npm ci can reproduce the install.
+
+client/package.json
+Package dependencies and npm commands. Client has Vite/Playwright commands; server also points Prisma at its schema and generates the client after install.
+
+client/playwright.config.ts
+Sets up Chromium and starts or reuses Vite for browser checks. It does not start PostgreSQL or the API. The account verifier supplies its disposable API address when it runs the full account-flow tests.
+
+client/postcss.config.js
+Runs Tailwind and Autoprefixer when Vite builds the CSS.
+
+client/src/App.jsx
+Puts the router and shared providers around the pages. Auth is outside sockets because the connection needs the login token. Named code: App. It imports ./components/common/ErrorBoundary.jsx, ./components/common/Toaster.jsx, ./context/AuthContext.jsx, ./context/SocketContext.jsx, ./context/ThemeContext.jsx, ./context/ToastContext.jsx, ./routes/AppRoutes.jsx.
+
+client/src/api/aiApi.js
+The browser calls for ai. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/analyticsApi.js
+The browser calls for analytics. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/authApi.js
+The login, signup, session and change-password requests live here. They use axiosClient for tokens and cookies. The old forgot/reset request methods still point to the API, but those endpoints now return administrator-contact guidance with 403.
+
+client/src/api/axiosClient.js
+Adds the access token and sends the refresh cookie. I coordinate refresh requests within this tab and give each waiting request the same user/token result. An eligible 401 gets one refresh attempt. Password-change requests handle their own auth error. Separate tabs can still race on the shared cookie.
+
+client/src/api/clientApi.js
+The browser calls for client. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/invoiceApi.js
+The browser calls for invoice. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/notificationApi.js
+The browser calls for notification. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/paymentApi.js
+The browser calls for payment. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/projectApi.js
+The browser calls for project. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/api/taskApi.js
+The browser calls for task. They use axiosClient for headers, cookies and refresh rather than repeating that in each page. It imports ./axiosClient.js.
+
+client/src/components/common/Badge.jsx
+Maps stored status/priority values to short labels and colors. Named code: Badge.
+
+client/src/components/common/Button.jsx
+Shared button styles and props. The calling page still supplies the click/submit action. Named code: Button.
+
+client/src/components/common/EmptyState.jsx
+A message for an empty list instead of a blank area. Named code: EmptyState.
+
+client/src/components/common/ErrorBoundary.jsx
+Catches React render errors and offers a reload. Async request failures still need their own catches. It imports ./Button.jsx.
+
+client/src/components/common/InputField.jsx
+A labelled input, textarea or select with a place for an error message. Named code: InputField.
+
+client/src/components/common/Loader.jsx
+The loading spinner used while a request or page chunk is loading. Named code: Loader.
+
+client/src/components/common/Logo.jsx
+The small ClientHub mark/name used on the login and navigation screens. Named code: Logo.
+
+client/src/components/common/Modal.jsx
+The shared dialog. It handles Escape, focus, background scrolling and restoring focus when it closes. Named code: Modal, handleKeyDown.
+
+client/src/components/common/Pagination.jsx
+Previous/next controls. The parent page sends the page number to the API. Named code: Pagination. It imports ./Button.jsx.
+
+client/src/components/common/Toaster.jsx
+Shows the current messages from ToastContext and lets the user dismiss them. Named code: Toaster. It imports ../../hooks/useToast.js.
+
+client/src/components/dashboard/ProgressChart.jsx
+Shows active/completed project numbers from the API in a pie chart. Named code: ProgressChart.
+
+client/src/components/dashboard/RevenueChart.jsx
+Shows top-client paid revenue from the dashboard response. Named code: RevenueChart. It imports ../../utils/helpers.js.
+
+client/src/components/dashboard/StatsCard.jsx
+Displays one dashboard label/value with an optional icon. Named code: StatsCard.
+
+client/src/components/invoices/InvoiceForm.jsx
+Builds the invoice items, previews tax/total and asks for logged-hour suggestions. The server recalculates before saving. Named code: InvoiceForm, updateItem, suggest, handleSubmit. It imports ../../api/invoiceApi.js, ../../api/projectApi.js, ../../utils/helpers.js, ../common/Button.jsx, ../common/InputField.jsx.
+
+client/src/components/invoices/InvoiceTable.jsx
+Shows invoices, downloads PDF blobs and opens the local payment dialog. A ref stops repeated clicks in the same request. Named code: InvoiceTable, downloadPdf, openPayModal, confirmPayment, closeModal. It imports ../../api/invoiceApi.js, ../../api/paymentApi.js, ../../hooks/useToast.js, ../../utils/helpers.js, ../common/Badge.jsx, ../common/Button.jsx, ./PaymentModal.jsx.
+
+client/src/components/invoices/PaymentModal.jsx
+Confirms the simulated payment and clearly labels it as a demo. It does not take money. Named code: PaymentModal. It imports ../../utils/helpers.js, ../common/Button.jsx.
+
+client/src/components/kanban/KanbanBoard.jsx
+Moves a card locally, saves the new status and puts it back if the save fails. Clients get a read-only board. Named code: KanbanBoard, handleDragEnd. It imports ../../api/taskApi.js, ./TaskColumn.jsx.
+
+client/src/components/kanban/TaskCard.jsx
+Displays/drags a task. It avoids opening the dialog when a drag ends. Named code: TaskCard, handleClick. It imports ../../utils/helpers.js, ../common/Badge.jsx.
+
+client/src/components/kanban/TaskColumn.jsx
+One droppable status column containing its task cards. Named code: TaskColumn. It imports ./TaskCard.jsx.
+
+client/src/components/kanban/TaskModal.jsx
+Shows a task's comments and permitted work fields. An admin can change the assignee with the team picker. A team member can update their own assigned work, hours and priority, but cannot reassign it. Clients can comment on their own tasks without editing the staff fields. The API checks these permissions too.
+
+client/src/components/layout/DashboardLayout.jsx
+The navbar/sidebar around the current page, rendered through Outlet. Named code: DashboardLayout. It imports ./Navbar.jsx, ./Sidebar.jsx.
+
+client/src/components/layout/Navbar.jsx
+Shows the signed-in account, theme control and logout. Demo users do not get the notification bell or change-password link. Managed users can open Change password. Logout finishes clearing the session before the page returns to login.
+
+client/src/components/layout/ProtectedRoute.jsx
+Waits for session restoration before deciding where to send the user. Signed-out users go to login. A managed account with mustChangePassword goes to /change-password before any workspace page. The change-password route allows that pending session, and role checks keep users on the pages they can use.
+
+client/src/components/layout/Sidebar.jsx
+Uses the same links on desktop and mobile. Admin gets agency pages and Team & Accounts. Team gets its dashboard and assigned projects. Client gets its own dashboard, projects and invoices. Demo gets only Demo Workspace.
+
+client/src/components/notifications/NotificationBell.jsx
+Loads the notification list/count and handles socket updates and read state. Named code: NotificationBell, load, markRead, markAll. It imports ../../api/notificationApi.js, ../../hooks/useSocket.js, ./NotificationList.jsx.
+
+client/src/components/notifications/NotificationList.jsx
+Renders notifications and follows their internal links after marking them read. Named code: NotificationList, handleClick. It imports ../../utils/helpers.js.
+
+client/src/context/AuthContext.jsx
+Keeps the user/token in state, restores a saved session and clears this tab on logout. It also handles refreshed-token events. Named code: AuthProvider, restore, handleRefresh. It imports ../api/authApi.js, ../api/axiosClient.js, ./contexts.js.
+
+client/src/context/SocketContext.jsx
+Opens a socket only for a signed-in agency user who has finished the required password change. Demo and pending accounts do not connect. Logout and token changes close the previous connection. The active flag also handles logout while the socket package is loading.
+
+client/src/context/ThemeContext.jsx
+Reads the saved/system theme and updates the page and local storage when the choice changes. Named code: getInitialTheme, ThemeProvider. It imports ./contexts.js.
+
+client/src/context/ToastContext.jsx
+Keeps the temporary success/error messages and their dismissal timers in one place. Named code: ToastProvider. It imports ./contexts.js.
+
+client/src/context/contexts.js
+Keeps the Context objects separate from their providers so Fast Refresh works properly.
+
+client/src/hooks/useAuth.js
+A short hook to read the matching shared context. The provider holds the state. Named code: useAuth. It imports ../context/contexts.js.
+
+client/src/hooks/useDebounce.js
+Waits briefly after typing before updating the search value. It clears the previous timer. Named code: useDebounce.
+
+client/src/hooks/useFetch.js
+Keeps loading/data/error state for reads. It aborts an old request and checks its ID so a late response does not overwrite a newer one. Named code: useFetch.
+
+client/src/hooks/useInvoiceUpdates.js
+Reloads relevant data for invoice events, socket reconnect and browser focus. It removes the listeners when the component goes away. Named code: useInvoiceUpdates. It imports ./useSocket.js.
+
+client/src/hooks/useSocket.js
+A short hook to read the matching shared context. The provider holds the state. Named code: useSocket. It imports ../context/contexts.js.
+
+client/src/hooks/useTheme.js
+A short hook to read the matching shared context. The provider holds the state. Named code: useTheme. It imports ../context/contexts.js.
+
+client/src/hooks/useToast.js
+A short hook to read the matching shared context. The provider holds the state. Named code: useToast. It imports ../context/contexts.js.
+
+client/src/index.css
+Tailwind layers and the few global styles.
+
+client/src/main.jsx
+Mounts App in the root element from index.html. This is where the browser code starts. It imports ./App.jsx, ./index.css.
+
+client/src/pages/AdminDashboard.jsx
+Loads the agency totals and charts for admin only. Team members now have a separate assigned-work view, so they cannot read agency revenue or the full client totals through this dashboard or its API.
+
+client/src/pages/ClientDashboard.jsx
+Loads the linked client overview and invoice/project information. Ownership is checked by the API. Named code: ClientDashboard. It imports ../api/aiApi.js, ../api/analyticsApi.js, ../components/common/Badge.jsx, ../components/common/EmptyState.jsx, ../components/common/Loader.jsx, ../components/dashboard/StatsCard.jsx, ../hooks/useFetch.js, ../hooks/useInvoiceUpdates.js, ../utils/helpers.js.
+
+client/src/pages/ClientsPage.jsx
+Admin can search, filter, create and archive clients. A new client needs an email. Saving creates both the client record and linked portal account, then shows a generated temporary login once. There is no manually entered portal-password field now.
+
+client/src/pages/ForgotPassword.jsx
+Shows how to contact the agency administrator. It does not ask for an email or send a reset link. Old /reset-password URLs redirect here. Shared demo passwords cannot be reset.
+
+client/src/pages/InvoicesPage.jsx
+Loads the invoice list, opens the admin form and reloads after invoice/payment changes. Named code: InvoicesPage. It imports ../api/invoiceApi.js, ../components/common/Button.jsx, ../components/common/EmptyState.jsx, ../components/common/Loader.jsx, ../components/common/Modal.jsx, ../components/common/Pagination.jsx, ../components/invoices/InvoiceForm.jsx, ../components/invoices/InvoiceTable.jsx, ../hooks/useAuth.js, ../hooks/useFetch.js, ../hooks/useInvoiceUpdates.js, ../utils/helpers.js.
+
+client/src/pages/Login.jsx
+Everyone uses the same email/password form. A help message tells team and client users to contact the agency administrator for an account or password reset. The page shows the restricted public demo login and links to demo signup. A pending managed account goes to password setup; otherwise the saved role decides the dashboard.
+
+client/src/pages/MyTasksPage.jsx
+Shows only tasks assigned to the current user, with a status filter. At /team it is the Team Dashboard. Admin can still open its own task list at /my-tasks. The response comes from /api/tasks/mine.
+
+client/src/pages/NotFound.jsx
+A small page for browser URLs that do not match a route. Named code: NotFound. It imports ../components/common/Button.jsx, ../components/common/Logo.jsx.
+
+client/src/pages/ProjectDetailPage.jsx
+Shows the project information that this role can read. Admin can create and assign tasks, and later change an assignee in the task dialog. Team sees its own assigned tasks and minimal client identification, without project budget, invoices or summaries. Clients see their own project's tasks, invoices and summaries. A missing summary does not hide the rest of the page.
+
+client/src/pages/ProjectsPage.jsx
+Loads projects through the scoped API. Admin can create projects. Team only gets projects containing its assigned work, with no budget shown. Clients get projects linked to their own client record.
+
+client/src/pages/ChangePassword.jsx
+A managed user enters the temporary/current password and confirms a new personal password. The form requires at least eight characters; the API also enforces the bcrypt limit of 72 bytes. The first-login screen has a sign-out option but no way around the required change. Demo and fictional seed accounts are redirected away because their passwords are locked.
+
+client/src/pages/Signup.jsx
+Public visitors can create a demo account using their name, email and chosen password. The server always sets role demo and isDemo true; request fields cannot turn this into a team or admin account. The page explains that this is an empty workspace with no agency data or password recovery.
+
+client/src/routes/AppRoutes.jsx
+Routes /demo, /team and /accounts to the demo workspace, assigned-work dashboard and admin account screen. /change-password is outside the normal workspace layout so a pending account can finish setup. /admin and /clients are admin-only, invoices are admin/client only, and old reset URLs lead to the contact page. ProtectedRoute handles navigation; the API makes the actual access decision.
+
+client/src/utils/helpers.js
+Date, money and display helpers, plus the UI role checks. defaultRoute sends demo to /demo, team_member to /team, client to /client and admin to /admin. roleLabel includes all four roles. These helpers do not grant API access.
+
+client/tailwind.config.js
+The colors, dark-mode setting and files Tailwind scans for class names.
+
+client/tests/auth.spec.ts
+The two original browser checks still cover seeded admin/client login. accounts.spec.ts adds four more checks for demo isolation, old reset-link guidance, team onboarding and client onboarding/reset.
+
+client/tsconfig.json
+Editor/TypeScript settings. Most of the app is still JavaScript, and the build does not run tsc.
+
+client/tsconfig.node.json
+TypeScript settings for the Vite config.
+
+client/vercel.json
+Frontend SPA rewrite/build settings.
+
+client/vite.config.ts
+React plugin, dev port and a few bundle chunks. This is a Vite app, not Next.js.
+
+docker-compose.yml
+Local PostgreSQL plus the proposed app containers. I currently use only its postgres service; the volume keeps data between stops.
+
+python-services/ai-service/.env
+Private Python settings. Use --env-file or host injection because main.py only reads process variables. Setting names: GROQ_API_KEY, GROQ_MODEL, PORT.
+
+python-services/ai-service/.env.example
+Example setting names to copy and fill in privately. The app does not load this example directly. Setting names: GROQ_API_KEY, GROQ_MODEL, PORT.
+
+python-services/ai-service/Dockerfile
+The Python image: install requirements, copy the service and start Uvicorn.
+
+python-services/ai-service/README.md
+The short Python service notes, including --env-file startup, health/summary endpoints and its two tests.
+
+python-services/ai-service/main.py
+The FastAPI summary endpoint, request model, Groq call and fallback. It does not use a database ORM or automatically load .env. Named code: build_prompt, fallback, log_summary_request, summary, health, SummaryReq. Setting names: GROQ_API_KEY, GROQ_MODEL.
+
+python-services/ai-service/requirements.txt
+Pinned Python runtime packages. Install pytest/pytest-asyncio separately for the tests.
+
+python-services/ai-service/ruff.toml
+Python lint preferences that still need checking/wiring up.
+
+python-services/ai-service/tests/test_main.py
+Two Python checks for health and fallback output. They do not cover successful live provider delivery. Named code: test_health, test_summary_fallback.
+
+server/.env
+Private API settings or a local/production template. Default dotenv loading selects server/.env, not every env filename. Setting names: CLIENT_URL, DATABASE_URL, GROQ_API_KEY, GROQ_MODEL, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT, JWT_EXPIRES_IN, JWT_SECRET, NODE_ENV, PORT, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SMTP_FROM, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER.
+
+server/.env.example
+Example setting names to copy and fill in privately. The app does not load this example directly. Setting names: AI_SERVICE_URL, CLIENT_URL, CRON_TIMEZONE, DATABASE_URL, GROQ_API_KEY, GROQ_MODEL, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT, JWT_SECRET, NODE_ENV, PORT, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SMTP_FROM, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER.
+
+server/.env.local
+Private API settings or a local/production template. Default dotenv loading selects server/.env, not every env filename. Setting names: VERCEL_OIDC_TOKEN.
+
+server/.env.production
+Private API settings or a local/production template. Default dotenv loading selects server/.env, not every env filename. Setting names: CLIENT_URL, DATABASE_URL, GROQ_API_KEY, GROQ_MODEL, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT, JWT_EXPIRES_IN, JWT_SECRET, NODE_ENV, PORT, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SMTP_FROM, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER.
+
+server/Dockerfile
+The API development image. Its Prisma path/copy order still needs fixing before I rely on the full container build.
+
+server/api/index.js
+Exports Express for Vercel Functions. It does not run the socket/cron startup from server.js. It imports ../src/app.js.
+
+server/eslint.config.js
+Lint preferences left in the repo. The required tools and npm lint commands are not fully wired up.
+
+server/package-lock.json
+Exact npm dependency versions. I keep this so npm ci can reproduce the install.
+
+server/package.json
+Includes dev/start, Prisma and seed commands. accounts:setup runs prisma db push and then scripts/setup-accounts.js. test:accounts runs the disposable-database account verifier. npm ci still generates the Prisma client through postinstall.
+
+server/scripts/verify-local.js
+Runs 17 local integration scenarios covering saved records, permissions, payments, refresh and administrator-managed password recovery. It accepts the guarded local 127.0.0.1:5433/clienthub database or a disposable local clienthub_access_test_* database. It creates temporary fixtures and QA PDFs; it is not a production smoke-test command.
+
+server/src/app.js
+Builds Express middleware and mounts the API routes, including /api/accounts. It does not listen by itself. Auth routes allow login/session/password setup; business routers also use the workspace gate. The signed payment webhook remains before JSON parsing.
+
+server/src/config/db.js
+Exports the Prisma client shared by the API code.
+
+server/src/config/imagekit.js
+Uploads a buffered logo to ImageKit through fetch and form data. The private key stays on the server. Named code: uploadToImageKit. Setting names: IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT.
+
+server/src/config/multer.js
+Limits the upload size/type and keeps the image in memory for the upload handler.
+
+server/src/config/razorpay.js
+Creates the optional gateway client and exports whether payments are configured. Setting names: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.
+
+server/src/config/validateEnv.js
+Checks required settings before startup and reports missing optional integrations. Named code: validateEnv. It imports ../utils/logger.js. Setting names: JWT_SECRET, NODE_ENV.
+
+server/src/controllers/aiController.js
+Lets admin generate a summary and lets authorized users read the latest one/history. Named code: generateSummary, getSummaries. It imports ../config/db.js, ../services/aiSummaryService.js.
+
+server/src/controllers/analyticsController.js
+Reads agency totals for admin and linked-client totals for a client. Team is no longer allowed to use /analytics/admin. The admin-only debug query is still an EXPLAIN example, not a measured performance claim.
+
+server/src/controllers/authController.js
+Handles bcrypt login, demo signup and access/refresh sessions. Public signup cannot choose an agency role. changePassword verifies the old password, saves a different hash, clears mustChangePassword and increments sessionVersion in a transaction. Old refresh sessions/reset entries are removed or revoked and sockets are disconnected. Public forgot/reset endpoints return 403 with administrator-contact guidance instead of issuing email links.
+
+server/src/controllers/clientController.js
+Admin manages the client directory. Creating a client requires an email and generates a temporary password. The linked client-role User and Client are saved in one transaction, with createdByAdmin and mustChangePassword set. The response shows the temporary credentials once; the database keeps only the password hash.
+
+server/src/controllers/invoiceController.js
+Checks the project/client match, saves totals/items and returns authorized PDF downloads. Named code: getClientId, listInvoices, getInvoice, suggestLineItems, createInvoice, downloadInvoicePDF. It imports ../config/db.js, ../services/invoiceService.js, ../utils/generatePDF.js.
+
+server/src/controllers/notificationController.js
+Reads notifications for the signed-in user. Team notification lists are limited to task-assignment/comment messages linked to projects where that user has assigned work. The read actions still check user ownership. Demo users cannot enter this business router.
+
+server/src/controllers/paymentController.js
+Checks invoice access and amount, blocks production simulation, and verifies webhook requests before processing them. Named code: getClientId, createOrder, handleWebhook, simulatePayment, paymentHistory. It imports ../config/db.js, ../config/razorpay.js, ../services/paymentService.js, ../utils/logger.js, ../utils/webhookVerify.js. Setting names: NODE_ENV, RAZORPAY_KEY_ID, RAZORPAY_WEBHOOK_SECRET.
+
+server/src/controllers/projectController.js
+Filters project reads with projectScope. Admin can manage projects, clients can read linked-client projects, and team can read projects containing its assignments. Team responses remove budgets/invoices and full client details, and only include that member's tasks. Progress is still calculated from the project's tasks.
+
+server/src/controllers/taskController.js
+Admin creates and assigns tasks. Team can read/comment/update only its own assigned tasks and cannot change the assignee. Clients can read and comment on tasks in their own projects but cannot edit staff work fields. Assignment checks are also included in team task updates, so removing an assignment removes that access. Status/history writes stay transactional; task:updated broadcasts are still not implemented.
+
+server/src/jobs/cronJobs.js
+Schedules summaries, overdue flags and token cleanup. The process has to be running at the right time. Named code: schedule, startCronJobs, stopCronJobs. It imports ../config/db.js, ../services/aiSummaryService.js, ../services/emailService.js, ../utils/logger.js, ../utils/sanitize.js. Setting names: CRON_TIMEZONE.
+
+server/src/middleware/authMiddleware.js
+authenticate checks the JWT, loads the current account, and rejects disabled users or an old sessionVersion with 401. requireWorkspaceAccess blocks demo roles and unknown roles. A managed account still needing a password change gets 403 with PASSWORD_CHANGE_REQUIRED. The auth endpoints for completing setup do not use that workspace gate.
+
+server/src/middleware/errorHandler.js
+Maps common database/upload errors to HTTP responses and hides internal details in production. Named code: notFound, multerStatus, errorHandler. It imports ../utils/logger.js. Setting names: NODE_ENV.
+
+server/src/middleware/rateLimiter.js
+Separate API/auth request limits. Test mode skips them; the store is local to the process. Setting names: NODE_ENV.
+
+server/src/middleware/roleMiddleware.js
+Checks whether that user role is allowed on the route. Controllers still need record ownership checks. Named code: authorize.
+
+server/src/middleware/validateQuery.js
+Checks pagination and allowed sort fields/order before the controller uses query values. Named code: validateQuery, paginationSchema, sortSchema.
+
+server/src/middleware/validateRequest.js
+Runs the body validator and returns its 400 errors. Some callers still need better type checks. Named code: validate, optionalDate.
+
+server/src/prisma/dev.db
+An old SQLite file. The current Prisma provider is PostgreSQL, so the app does not use it.
+
+server/src/prisma/schema.prisma
+The PostgreSQL schema still has 12 models. User now defaults to role demo and includes isDemo, createdByAdmin, mustChangePassword, disabled and sessionVersion. These fields control public access, managed onboarding and session invalidation. PasswordResetToken remains for older records and cleanup; public reset links are disabled. Money is still Float and invoice items are serialized text. There is no migration history yet.
+
+server/src/prisma/seed.js
+Creates the fictional agency records and then calls setupAccounts. If users already exist, it skips business-data creation and only runs account setup. Existing sample logins keep their agency roles but have locked passwords. A fresh seed now creates 16 role-specific sample users plus the public demo user. FORCE_SEED still deletes/rebuilds sample data and is not a normal update step.
+
+server/src/routes/aiRoutes.js
+Only admin and client accounts can read summaries, with client project ownership checked by the controller. Generating a summary remains admin-only. Team and demo sessions cannot use this router.
+
+server/src/routes/analyticsRoutes.js
+Agency totals and debug queries are admin-only. /analytics/client is client-only and resolves the linked client. Team uses its assigned-task dashboard instead of agency analytics.
+
+server/src/routes/authRoutes.js
+Connects signup, login, refresh, logout, me and authenticated change-password handlers. Signup and new passwords need at least eight characters and at most 72 bytes. Public forgot/reset endpoints are kept as disabled 403 responses for old callers. Auth responses are marked no-store.
+
+server/src/routes/clientRoutes.js
+The client directory and its writes are admin-only. Creating a client validates the required login email. Authentication and the workspace gate run before the role/body/query checks.
+
+server/src/routes/invoiceRoutes.js
+Invoice reads and PDFs are available to admin or the owning client. Creation and suggestions remain admin-only. Team and demo accounts cannot enter the invoice routes.
+
+server/src/routes/notificationRoutes.js
+Runs authentication and the workspace gate before notification reads and read-state updates. User ownership is checked in the controller, with a narrower task-only list for team members.
+
+server/src/routes/paymentRoutes.js
+Payment history, orders and the local simulation are for admin/client accounts, with client ownership checks in the controller. Team and demo accounts are blocked. The separate gateway webhook still relies on signature verification.
+
+server/src/routes/projectRoutes.js
+Authentication and workspace checks run first. Project list/detail handlers apply the user's record scope. Admin alone can create, edit or archive a project.
+
+server/src/routes/taskRoutes.js
+Admin creates/deletes tasks. Admin and team can update task work, with team assignment checks in the controller. Comment/activity reads also check task access. Clients can comment only within their own projects. All these routes reject demo and pending-password sessions.
+
+server/src/server.js
+Starts HTTP, sockets and cron. Shutdown closes them and disconnects Prisma. Named code: shutdown. It imports ./app.js, ./config/db.js, ./config/validateEnv.js, ./jobs/cronJobs.js, ./sockets/socketHandler.js. Setting names: PORT.
+
+server/src/services/aiSummaryService.js
+Gathers project activity, calls Python with a timeout and saves the result or fallback. Named code: aggregateActivity, fallback, generateProjectSummary. It imports ../config/db.js. Setting names: AI_SERVICE_URL.
+
+server/src/services/emailService.js
+Sends mail when SMTP is configured. It logs skipped/failed sends, so the calling API can still succeed without email delivery. Named code: sendEmail. It imports ../utils/logger.js. Setting names: SMTP_FROM, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER.
+
+server/src/services/invoiceService.js
+Calculates rounded invoice totals and turns task hours into suggested items. Named code: calculateInvoiceTotal, suggestLineItemsFromHours. It imports ../config/db.js.
+
+server/src/services/notificationService.js
+Saves a notification and sends it to the user room. A notification failure should not undo a saved business record. Named code: notifyUser, notifyAfterSave. It imports ../config/db.js, ../sockets/socketHandler.js, ../utils/logger.js, ../utils/sanitize.js, ./emailService.js.
+
+server/src/services/paymentService.js
+Payment/order/capture writes still use transactions and conditional updates for duplicate claims. After a payment is saved, invoice events and notifications go to admin and the linked client, not every team member.
+
+server/src/sockets/socketHandler.js
+Checks the JWT against the current database account and sessionVersion before joining the user's room. Demo, disabled, untrusted old team and pending-password accounts are rejected. Connections close when the access token expires. disconnectUser closes a user's sockets after password changes, resets or account-status changes. This runs only on the normal Node server.
+
+server/src/utils/calculateProgress.js
+Counts done tasks as a percentage of the total, returning zero for no tasks. Named code: calculateProgress.
+
+server/src/utils/generatePDF.js
+Builds invoice bytes with PDFKit, including wrapped descriptions and repeated headers on longer invoices. Named code: generateInvoicePDF, tableHeader.
+
+server/src/utils/logger.js
+A small console logger with levels/timestamps. It is not a separate monitoring service. Named code: log. Setting names: NODE_ENV.
+
+server/src/utils/sanitize.js
+Cleans user text with DOMPurify/JSDOM and escapes text used in email HTML. Named code: sanitizeHtml, escapeHtml, sanitizeComment, sanitizeDescription.
+
+server/src/utils/webhookVerify.js
+Checks the HMAC against the original request bytes with a timing-safe comparison. Named code: verifyRazorpaySignature.
+
+server/vercel.json
+API function routing/duration and PDFKit data-file packaging. It does not start sockets or cron.
+
+New account files
+
+client/src/api/accountApi.js
+Calls the admin account list, team creation, password reset and enable/disable endpoints. It uses the shared axios client, so the current session is sent in the same way as other API calls.
+
+client/src/components/common/TemporaryLogin.jsx
+Shows a new or reset account email and temporary password once. I keep it in component state, not localStorage. The admin can dismiss the details after sharing them privately; the current saved password is never displayed.
+
+client/src/pages/AccountsPage.jsx
+The admin Team & Accounts screen. It creates team members using name/email, lists team/client accounts, resets managed passwords and enables/disables logins. Shared seed passwords have disabled reset controls. Reset/status actions ask for confirmation.
+
+client/src/pages/DemoPage.jsx
+The empty public workspace. It shows zero projects, tasks and invoices with a short explanation. It does not call business-data APIs or show agency/client/team records.
+
+client/tests/accounts.spec.ts
+Four browser checks cover the empty demo, old reset links, team first-login password setup and linked-client creation/reset. The two tests that create accounts run only when the disposable account verifier enables them.
+
+server/src/controllers/accountController.js
+Admin can list team/client accounts, create a team member, issue a new temporary password, or disable/enable a login. Temporary passwords are generated, hashed and returned once. Reset/status changes increment sessionVersion, revoke refresh sessions, clear old reset entries and disconnect sockets. Seed/demo passwords cannot be reset.
+
+server/src/routes/accountRoutes.js
+Mounts under /api/accounts and requires an authenticated admin who has finished password setup. It validates team name/email and boolean status changes. Responses are no-store because creation/reset can contain a temporary password.
+
+server/src/utils/accounts.js
+Shared account fields, a safe user response, random temporary-password generation and session cleanup. publicUser treats an old untrusted team registration as demo before the setup script has converted it. passwordLocked covers demo roles and isDemo seed accounts.
+
+server/src/utils/access.js
+projectScope builds the project filter for admin, linked clients or assigned team work. canReadTask adds the team assignee check. canAssignTask accepts only an active team member, or an unassigned task.
+
+server/src/utils/demoAccounts.js
+Holds the public demo login and the known fictional seed email list. The public login is demo@clienthub.example / Demo@ClientHub123. The other seed accounts keep their agency roles for sample-data walkthroughs; isDemo locks their passwords.
+
+server/scripts/setup-accounts.js
+Prepares the shared demo user, locks known fictional seed passwords and converts old public team registrations to demo. It preserves business records and accounts created through the new admin flow. It revokes sessions for converted users and does not force a reseed.
+
+server/scripts/verify-accounts.js
+Checks public demo isolation, role injection, old signup conversion, managed onboarding, client/team scope, password locks, session/socket invalidation and account disable/enable. It only accepts a local disposable database named clienthub_access_test_*. The --browser flag also runs the six browser tests.
+
+How I'd read it
+
+Start with the schema, then index.html -> main.jsx -> App.jsx -> AppRoutes. Follow Login and authApi into authRoutes/authController. After that, follow a project/task request, then invoices and payments. Read the token/payment transactions before trying to explain duplicate handling. SocketContext/socketHandler and aiSummaryService/main.py can come after the basic flow.
+
+What happens on a request
+
+A page calls an API wrapper. axiosClient adds the token and sends cookies. Express checks the current session, workspace access, role and request data. The handler then applies linked-client ownership or team assignment scope. Prisma talks to PostgreSQL and the response updates the page. PDF downloads return bytes rather than JSON. Some saved events also create notifications and go through the user's socket room.
+
+The payment UI is a local simulation and production blocks it. Real checkout isn't finished. Summary fallbacks are intentional. Task moves save status/history, but don't broadcast task:updated. The normal server starts sockets/jobs; the Vercel app export doesn't. Those are easy details to forget during a demo.
+
+Getting it running
+
+How I set up ClientHub from scratch
+
+I run PostgreSQL in Docker and the apps in separate terminals. That is the route to use for now; the full application Docker build still needs fixes.
+
+Before starting
+
+Install Git, Node.js 22 (or a compatible supported version), Docker Desktop and Python 3.12 if you want the summary service. The older Python packages can warn on newer interpreters. Check node --version, npm --version, docker --version and py -3.12 --version. RTK is only an optional command wrapper on my machine, not an app dependency.
+
+The current copy is D:\Projects\On Working Projects\CLIENTHUB. On another machine, clone your own repo and use that path instead. Repo URL: NOT FOUND - please fill in.
+
+Local settings
+
+If they don't already exist, copy server/.env.example to server/.env and client/.env.example to client/.env. Don't overwrite your existing settings. Fill the values in privately.
+
+The API needs DATABASE_URL and JWT_SECRET. CLIENT_URL must match the browser origin; NODE_ENV controls things like production cookies and the payment simulation block. PORT can be set for the API. The browser uses VITE_API_URL and VITE_SOCKET_URL. The normal local addresses are listed below; PROJECT_GUIDE.txt lists all setting names.
+
+Node dotenv normally reads server/.env when I start it from server. It doesn't pick every .env.local/.env.production file automatically. Root .env is for Compose interpolation. Vite has its own mode/override rules, and its VITE values are public browser settings. Don't put a private key there.
+
+Start the database
+
+In PowerShell:
+  Set-Location -LiteralPath 'D:\Projects\On Working Projects\CLIENTHUB'
+  docker compose up -d postgres
+  docker ps --filter name=clienthub-postgres
+
+Docker Desktop has to be running. Compose publishes PostgreSQL on local port 5433 and keeps its data in a named volume. Use the development database details from docker-compose.yml when setting DATABASE_URL privately. If the port is busy, check what's already running before changing anything or removing data.
+
+Start the API
+
+In a new terminal:
+  Set-Location -LiteralPath 'D:\Projects\On Working Projects\CLIENTHUB\server'
+  npm ci
+  npm run prisma:generate
+  npm run prisma:push
+  npm run seed
+  npm run accounts:setup
+  npm run dev
+
+npm ci already generates Prisma through postinstall. For a fresh database, run prisma:push and seed before accounts:setup. Account setup creates a public demo user, so doing it before the first seed would make the seed skip the agency sample records. For an existing database, stop the API, run npm ci and npm run accounts:setup, then restart it. Check the intended database and stop on an unexpected data-loss prompt. Do not force a reseed for this update.
+
+Check http://localhost:5000/api/health. A 200 response should say database ok. A 503 means the database isn't reachable, even if Node itself started. API routes use http://localhost:5000/api.
+
+Start React
+
+In another terminal:
+  Set-Location -LiteralPath 'D:\Projects\On Working Projects\CLIENTHUB\client'
+  npm ci
+  npm run dev
+
+Open http://localhost:5173. I keep localhost consistent across the browser/API setup so cookies and allowed origins don't get confusing. If Vite picks a different port, check the conflict and update the origin deliberately.
+
+Optional Python
+
+I keep the environment outside the project so its packages don't end up in Git:
+  py -3.12 -m venv "$env:USERPROFILE\.venvs\clienthub-ai"
+  Set-Location -LiteralPath 'D:\Projects\On Working Projects\CLIENTHUB\python-services\ai-service'
+  & "$env:USERPROFILE\.venvs\clienthub-ai\Scripts\python.exe" -m pip install -r requirements.txt
+
+If .env doesn't exist, copy .env.example and fill it in privately. Then:
+  & "$env:USERPROFILE\.venvs\clienthub-ai\Scripts\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000 --env-file .env
+
+I use --env-file because main.py doesn't load that file itself. http://localhost:8000/health checks it, and /docs has FastAPI's interactive request form. Without a Groq key it returns a template. Express also has a fallback if Python is down.
+
+Try the app
+
+Public demo: demo@clienthub.example / Demo@ClientHub123
+This opens an empty workspace. It has no agency data and cannot change/reset its password.
+
+Role-specific seed accounts for a sample-data walkthrough:
+Admin: admin@clienthub.com / Admin@ClientHub.Passcode
+Team: developer@clienthub.com / Developer@ClientHub.Passcode
+Client: oscorp@clienthub.com / Oscorp@ClientHub.Passcode
+
+The role-specific accounts above have fictional agency records and locked passwords. They are different from the empty public demo. Their known passwords must not be used to protect real customer data. As admin, assign a task to the team user; as team, check only that assigned work. As client, check the linked projects and invoice PDF. Local Pay Now is simulated and blocked in production. Optional email/uploads/gateway/AI integrations need separate checks.
+
+Checks I can run
+
+From client:
+  npm run build
+  npx playwright install chromium
+  npm test
+
+The browser tests need the API/database and seeded accounts. Playwright can start Vite but doesn't initialize the other services.
+
+From server, with the specific local demo database ready:
+  node scripts/verify-local.js
+
+This creates temporary fixtures and QA PDFs. It accepts the guarded local database or a disposable local clienthub_access_test_* database. There is no npm verify:local command. For the account tests, seed a separate disposable local database with that prefix and supply its DATABASE_URL before running npm run test:accounts. Add -- --browser to include the browser flow checks; keep JWT_SECRET set and frontend port 5173 free.
+
+For Python, install the test tools in the same environment:
+  & "$env:USERPROFILE\.venvs\clienthub-ai\Scripts\python.exe" -m pip install pytest pytest-asyncio
+  & "$env:USERPROFILE\.venvs\clienthub-ai\Scripts\python.exe" -m pytest tests -q
+
+The lint configs are still not fully wired up and there isn't a CI workflow yet.
+
+Stopping and fixing basic problems
+
+Ctrl+C stops each app terminal. From the root, docker compose stop postgres stops the database without deleting its volume.
+
+For login trouble I check API health, the seeded account and the origin settings first. For missing Prisma code I run npm ci/generate from server. Forgotten passwords are now handled by an administrator; SMTP is only needed for optional notification emails. Summary fallbacks can come from missing config, Python being down or the Node/Python timeout mismatch. Production rejecting the mock payment is expected. None of these needs a forced database reset as the first fix.
+
+Deployment
+
+Live frontend: NOT FOUND - please fill in
+Live API: NOT FOUND - please fill in
+Python host: NOT FOUND - please fill in
+Database host/dashboard: NOT FOUND - please fill in
+Repo and deployed commit/date: NOT FOUND - please fill in
+
+The env production files have example origins. I haven't treated those as real links. The Vercel configs describe one possible HTTP deployment; they don't prove it is live. The sibling deploy-free-guide.txt has a hosting plan and current source links. Rebuild Vite after changing public destinations, apply database changes separately, and don't force seed on redeploy.
+
+Environment names
+
+I only list the names here. Real database, token and provider values stay private.
+AI_SERVICE_URL - Server-side address of the Python summary service.
+CI - Test-runner signal for stricter CI behavior; no CI workflow is currently included.
+CLIENT_URL - Allowed frontend origin or origins for API/socket CORS. Public email-reset links are no longer generated.
+CRON_TIMEZONE - Timezone used by in-process scheduled jobs.
+DATABASE_URL - Private PostgreSQL connection string used by Prisma. Never publish the value.
+FORCE_SEED - Explicitly permits destructive demo reseeding when users already exist. Do not enable for normal startup.
+GROQ_API_KEY - Private provider key read by the Python summary service.
+GROQ_MODEL - Provider model selection used by Python.
+IMAGEKIT_PRIVATE_KEY - Private ImageKit upload authentication.
+IMAGEKIT_PUBLIC_KEY - ImageKit-related public configuration; declared/exported but current server upload authentication uses the private key.
+IMAGEKIT_URL_ENDPOINT - ImageKit delivery endpoint configuration; declared/exported but upload returns the provider URL.
+JWT_EXPIRES_IN - Appears in example configuration but does not override the current hard-coded access/refresh durations.
+JWT_SECRET - Private access-token signing and verification secret. Generate a long random value privately.
+NODE_ENV - Controls production cookie/security/error behavior and blocks demo payment simulation in production.
+PORT - HTTP port supplied to the Node server by local configuration or hosting.
+RAZORPAY_KEY_ID - Gateway account identifier used for order creation when configured.
+RAZORPAY_KEY_SECRET - Private gateway API secret.
+RAZORPAY_WEBHOOK_SECRET - Private secret used to verify raw webhook signatures.
+SMTP_FROM - Sender identity for outgoing email.
+SMTP_HOST - SMTP server hostname; its presence enables mail transport creation.
+SMTP_PASS - Private SMTP authentication password.
+SMTP_PORT - SMTP transport port.
+SMTP_USER - SMTP authentication identity.
+VERCEL_OIDC_TOKEN - Local Vercel CLI authentication metadata found in local configuration. The application does not require it; never copy it into documentation or Git.
+VITE_API_URL - Public browser API base address compiled by Vite.
+VITE_RAZORPAY_KEY_ID - Declared frontend payment configuration; current UI uses simulation and does not complete gateway checkout.
+VITE_SOCKET_URL - Public Socket.io server address compiled by Vite.
+
+My roadmap gaps
+
+Web Fundamentals: substantial practical coverage. HTTP requests/statuses, JSON, CORS, cookies, JWTs, SPA routing and sockets. Still left: Explain HTTPS, browser cookie behavior, CSRF and request lifecycles independently.
+Git: partial. Ignore/attribute rules exist; a fresh workflow is documented. Still left: The old .git metadata was intentionally removed. Current branch, remote and PR history are not available locally.
+HTML: application-level coverage. JSX forms, labels, buttons, tables, navigation and dialog markup. Still left: A full semantic/keyboard/screen-reader audit has not been completed.
+CSS: substantial practical coverage. Tailwind styling, dark mode and responsive layout utilities. Still left: Verify small-screen behavior and explain core CSS independently of utilities.
+Python: partial and limited. Functions, types, request models, async HTTP, exceptions and two tests. Still left: The service is small; database/business-layer Python and deeper modular design are not demonstrated.
+FastAPI: basic. Summary/health endpoints, request models, async httpx and background logging. Still left: Database CRUD, authentication dependencies, response models and stronger constraints are missing.
+React: strong project evidence. Components, hooks, Context, routing, lazy loading, API calls, forms, charts and a board. Still left: Broader browser coverage, accessibility and multi-tab/session edge cases need work.
+Next.js: missing. The application uses React with Vite. Still left: No Next.js routes, server components, SSR/SSG or framework cache features are implemented.
+PostgreSQL: meaningful practical coverage. Relations, foreign keys, indexes, uniqueness, aggregates, transactions and one EXPLAIN example. Still left: No measured performance study, backup/restore proof or extensive operational evidence.
+ORM: strong in javascript and missing in python. Prisma models, queries, relation loading, aggregates and transactions. Still left: No SQLAlchemy/SQLModel or Python database-session management.
+Migrations: missing workflow. A migrate script is declared. Still left: No committed migration files/history; documented development setup uses db push.
+
+Words I keep seeing
+
+API is the interface between the browser and server. A controller handles a request; a service holds logic that can be reused. Middleware checks/processes the request before the handler. Prisma is the ORM between my code and relational tables. A foreign key links records. A transaction saves related changes together or rolls them back.
+
+A JWT is a signed access token, not encrypted private storage. A refresh token gets a new access token. A webhook is a provider calling my server. Idempotency means a retry shouldn't repeat the business effect. Socket.io handles the live connection. Cron is a time schedule, but my in-process job only works while the process runs. A migration is a versioned database change; db push doesn't create that history.
+
+Other notes
+
+setup-guide.txt is the full setup, locall_run.txt is my daily start/stop list, user-guide.txt explains the screens and interview-prep.txt has questions I'd practise. project-spec.txt covers the modules and roadmap. remaining-tasks.txt is the backlog. resume-bullets.txt and viva-script.txt are drafts I should understand and adapt before using.
+
+The Word report is rebuilt from the shorter notes by _gen_docx.py in CLIENTHUB-docs. The existing PowerPoint and its generator are being left alone for now. The Postman collection is also there; compare it with current routes before assuming every saved request is up to date.
+
+How login and account setup work now
+
+I use four role strings: admin, team_member, client and demo. A staff title such as Project Manager is just a label in the sample data, not an extra permission role.
+
+Public signup and the shared demo
+
+Signup only creates a demo user. Sending role=admin or team_member in the request does not grant agency access. After signup or a later login, the visitor lands at /demo and sees an empty workspace with zero projects, tasks and invoices. The page makes no business-data requests. The API rejects demo reads and writes with 403, and Socket.io rejects demo connections too.
+
+The login page shows demo@clienthub.example / Demo@ClientHub123. It also has the normal email/password form and a Create a demo account link. I do not show the role-specific seed passwords on this login screen. Those sample logins are documented in README.md for a local role walkthrough.
+
+There are two different meanings to keep straight. A public account has role demo and cannot read agency records. A fictional seed account keeps its admin/team/client role, but has isDemo set so its shared password stays locked. The flag does not turn a seeded admin into an empty demo user. Neither public demo nor seeded shared passwords can be changed or reset.
+
+Creating a team account
+
+Admin opens Team & Accounts and enters the member's name and email. The API generates a temporary password, stores its bcrypt hash and returns the temporary login once. createdByAdmin is true and mustChangePassword is true. The screen keeps those returned details only in memory; the admin shares them privately with the owner.
+
+The new member signs in through the common login form. Before showing any work, the app opens Set your new password. The backend blocks workspace APIs until this is done, so opening another URL does not skip it. After a successful change, the member goes to /team, which shows the Team Dashboard and their assignments.
+
+Creating a client account
+
+Admin creates the client from Clients with a required contact email. The server creates the client-role login and linked Client record in one transaction. If the email is already taken, the operation fails without leaving half a client behind. The generated temporary credentials are shown once, just as for team accounts.
+
+The client sets a personal password on the first login and then goes to /client. The API resolves that account's linked Client record. The user can read its own projects, tasks, invoices, PDFs and summaries, and comment on its own tasks. Another client's IDs do not grant access. Clients cannot edit staff task fields or create agency records.
+
+What team can read and change
+
+Team sees projects that contain tasks assigned to that user. The project response only includes their own tasks and the client identification needed for that work. It removes project budgets, invoices and full client details. Team cannot open the client directory, admin account list, agency revenue dashboard, invoices, payment history or summaries.
+
+Admin creates/assigns tasks using the project form or task dialog. Team can change permitted work fields, status, hours and comments on its assigned tasks. It cannot reassign tasks or create its own assignment. Removing the assignment removes access, including direct task/comment/activity requests. The backend checks the assignee again when updating team work.
+
+Forgotten passwords and later changes
+
+The common login page says: Account banwane ya password reset karwane ke liye apne agency administrator se contact karein.
+
+For a managed team/client account, admin uses Reset password in Team & Accounts. This generates another temporary password, sets mustChangePassword again and ends existing sessions. The owner must choose a personal password at the next login. Admin cannot view the previous password or recover it from the hash. A disabled account must be enabled before its password is reset.
+
+A managed user who knows the current password can use Change password in the navbar. It checks that password and requires a different new one. New passwords must be at least eight characters and at most 72 bytes. The browser also asks for confirmation; the API checks the actual password rules.
+
+Public /api/auth/forgot-password and /api/auth/reset-password return 403 with contact guidance. They do not send reset emails. Old /reset-password browser links lead to the same help page. SMTP is still used by optional notifications and scheduled mail, not by password recovery.
+
+Sessions and account status
+
+User has isDemo, createdByAdmin, mustChangePassword, disabled and sessionVersion fields. The API compares the access JWT's version with the current database value. Password changes, administrator resets and enable/disable actions increment sessionVersion, revoke existing refresh sessions and clear old reset-token entries. Existing access tokens then fail with 401. The normal server also disconnects the user's sockets; socket authentication checks current account state and token expiry.
+
+Before the setup script runs, publicUser already treats an old untrusted team registration as demo. setup-accounts.js converts those old registrations to role demo and revokes their refresh sessions. Known seed accounts retain their sample roles and locked passwords. Accounts created through the current admin flow are preserved. This update does not delete clients, projects or invoices.
+
+API paths I follow while checking this
+
+POST /api/auth/signup - public demo registration.
+POST /api/auth/login - common login; returns the user and access token, plus the refresh cookie.
+POST /api/auth/refresh - rotates the refresh cookie and returns the latest account state.
+GET /api/auth/me - current safe account details, without its password hash.
+POST /api/auth/change-password - authenticated temporary/current password plus the new password.
+POST /api/auth/logout - revokes the current refresh session and clears its cookie.
+GET /api/accounts - admin-only team/client account list; no current passwords or saved temporary passwords.
+POST /api/accounts/team - admin creates a managed team member.
+POST /api/accounts/:id/reset-password - admin issues a new temporary password for a managed team/client.
+PATCH /api/accounts/:id/status - admin enables/disables a team/client login using a boolean disabled value.
+POST /api/clients - admin creates a client with its linked login and temporary credentials.
+
+The account-management reset endpoint is for team/client accounts. It is not an administrator self-recovery endpoint. The admin can disable a login without deleting the user's business records. Demo, pending-password and non-admin sessions cannot call the account-management routes.
+
+What I checked for this change
+
+The implementation run passed the frontend build, Prisma validation, 10 account/access scenarios, 17 local integration scenarios and six Chromium browser checks. Tests used a separate temporary PostgreSQL database; they did not apply the schema to the existing project database. The temporary services were stopped afterward.
+
+Those checks cover empty demo access, role injection, old signup conversion, first-login passwords, assigned work, client ownership, admin resets, shared password locks, session/socket invalidation and disabling accounts. The browser tests also create a team/client and complete the password setup/reset screens. This guide edit is documentation only; it does not start the app, change the database or push anything to GitHub.

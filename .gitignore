@@ -1,0 +1,76 @@
+# Node dependencies and generated builds
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Private environment files; keep shareable templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Generated test output (keep test source files)
+playwright-report/
+playwright/.cache/
+test-results/
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.tgz
+.cache/
+
+# Local database files and generated QA artifacts
+server/src/prisma/dev.db
+server/src/prisma/dev.db-*
+.local-postgres/
+
+# Local hosting metadata and Compose overrides
+.vercel/
+.render/
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Personal editor and assistant configuration
+.vscode/
+.idea/
+.claude/
+.qodo/
+.agents/
+.mcp.json
+LOCAL_QA_REPORT.md
+PROJECT_REVIEW.md
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Keep source, docs, tests, lockfiles, deployment config and Prisma migrations.
