@@ -1,0 +1,201 @@
+// prisma schema - ClientHub database
+// run: npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("demo")
+  isDemo       Boolean  @default(false)
+  createdByAdmin Boolean @default(false)
+  mustChangePassword Boolean @default(false)
+  disabled     Boolean  @default(false)
+  sessionVersion Int    @default(0)
+  createdAt    DateTime @default(now())
+
+  clientProfile  Client?
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  comments       TaskComment[]
+  notifications  Notification[]
+  taskActivities TaskActivity[]
+  resetTokens    PasswordResetToken[]
+  refreshTokens  RefreshToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Client {
+  id           String    @id @default(cuid())
+  name         String
+  companyName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+  logoUrl      String?
+  archived     Boolean   @default(false)
+
+  linkedUserId String?   @unique
+  linkedUser   User?     @relation(fields: [linkedUserId], references: [id])
+
+  projects     Project[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  budget      Float    @default(0)
+  startDate   DateTime?
+  deadline    DateTime?
+  status      String   @default("not_started")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  tasks       Task[]
+  invoices    Invoice[]
+  aiSummaries AISummary[]
+
+  @@index([clientId])
+}
+
+model Task {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  assignedToUserId String?
+  assignedTo       User?    @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  status           String   @default("todo")
+  priority         String   @default("medium")
+  dueDate          DateTime?
+  hoursLogged      Float    @default(0)
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+
+  comments         TaskComment[]
+  activities       TaskActivity[]
+
+  @@index([projectId])
+  @@index([assignedToUserId])
+}
+
+model TaskActivity {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lineItems   String   @default("[]")
+  taxRate     Float    @default(0)
+  totalAmount Float    @default(0)
+  status      String   @default("pending")
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+
+  payments    Payment[]
+
+  @@index([projectId])
+  @@index([clientId])
+}
+
+model Payment {
+  id                   String   @id @default(cuid())
+  invoiceId            String
+  invoice              Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount               Float
+  gatewayTransactionId String?
+  status               String   @default("created")
+  paidAt               DateTime?
+  createdAt            DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([gatewayTransactionId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AISummary {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  summaryText String
+  riskFlag    String   @default("unknown")
+  generatedAt DateTime @default(now())
+
+  @@index([projectId])
+}

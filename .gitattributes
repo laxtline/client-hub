@@ -1,0 +1,24 @@
+# Normalize text files to LF in the repository and working tree.
+* text=auto eol=lf
+
+# Windows command scripts use CRLF when checked out.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Keep images, documents and archives unchanged.
+*.docx binary
+*.pptx binary
+*.xlsx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.gz binary
+
+# GitHub detects repository languages from the committed source files.
